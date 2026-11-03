@@ -1,11 +1,15 @@
 Base URL: `http://localhost:3000`
-## Module Users
-### POST /users/create
 
-Đầu vào (Header):
+## Module Users
+
+Các API bên dưới cần header:
+
 ```http
 Authorization: Bearer <accessToken>
 ```
+
+### POST /users/create
+
 Đầu vào (JSON):
 
 ```json
@@ -19,7 +23,7 @@ Authorization: Bearer <accessToken>
 
 Role hợp lệ: `admin`, `teacher`, `student`.
 
-Nếu tạo sinh viên, đầu vào là:
+Nếu tạo sinh viên:
 
 ```json
 {
@@ -32,11 +36,11 @@ Nếu tạo sinh viên, đầu vào là:
 }
 ```
 
-Đầu ra (ví dụ tạo giáo viên):
+Đầu ra — HTTP 201 (ví dụ tạo giáo viên):
 
 ```json
 {
-  "statusCode": "201",
+  "statusCode": 201,
   "message": "Tạo người dùng thành công",
   "data": {
     "_id": "<user-id>",
@@ -44,5 +48,57 @@ Nếu tạo sinh viên, đầu vào là:
     "userName": "nguyenvana",
     "role": "teacher"
   }
+}
+```
+
+Trùng userName — HTTP 409:
+
+```json
+{
+  "statusCode": 409,
+  "message": "Người dùng đã tồn tại",
+  "error": "Conflict"
+}
+```
+
+### PATCH /users/updatePassword
+
+Đổi mật khẩu của người dùng đang đăng nhập. Backend lấy ID từ access token.
+
+Đầu vào (JSON):
+
+```json
+{
+  "oldPassword": "123456",
+  "newPassword": "654321"
+}
+```
+
+Đầu ra — HTTP 200:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Cập nhật mật khẩu thành công"
+}
+```
+
+Mật khẩu cũ không đúng — HTTP 400:
+
+```json
+{
+  "statusCode": 400,
+  "message": "Mật khẩu hiện tại không đúng",
+  "error": "Bad Request"
+}
+```
+
+Không tìm thấy người dùng — HTTP 404:
+
+```json
+{
+  "statusCode": 404,
+  "message": "Người dùng không tồn tại",
+  "error": "Not Found"
 }
 ```
