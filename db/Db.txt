@@ -1,0 +1,86 @@
+Users — Tài khoản người dùng
+
+- _id
+- fullName: Họ và tên.
+- username: Tên đăng nhập, không được trùng.
+- passwordHash: 
+- role: Vai trò người dùng, gồm admin (quản trị viên), student (sinh viên), teacher (giảng viên).
+- studentCode: Mã sinh viên, chỉ áp dụng cho sinh viên
+- classId: Mã lớp hành chính của sinh viên. Chỉ áp dụng cho sinh viên.
+
+Classes — Lớp hành chính
+
+- _id: 
+- classCode: Mã lớp, KTPM2211
+- className: Tên lớp 
+
+Courses — Môn học
+
+- _id: Mã định danh môn học.
+- courseCode: Mã môn học, ví dụ IOT101
+- courseName: Tên môn học
+
+Sections — Lớp học phần
+
+- _id:
+- sectionCode: Mã lớp học phần, ví dụ IOT101_2026_HK1_01
+- courseId: Mã môn học, tham chiếu _id trong Courses.
+- teacherId: Mã giảng viên phụ trách, tham chiếu _id của tài khoản có vai trò teacher trong Users.
+- academicYear: Năm học, ví dụ “2026-2027”.
+- term: Học kỳ, nhận giá trị 1, 2 hoặc 3.
+
+Sessions — Buổi học
+
+- _id
+- sectionId: Mã lớp học phần của buổi học, tham chiếu _id trong Sections.
+- status: Trạng thái buổi học, gồm scheduled (chưa diễn ra), open (đang cho điểm danh), closed (đã kết thúc), cancelled (đã hủy).
+- startTime: Ngày, giờ bắt đầu buổi học.
+- endTime: Ngày, giờ kết thúc buổi học; phải sau startTime.
+- attendanceOpenTime: Thời điểm bắt đầu cho phép điểm danh.
+-attendanceCloseTime: Thời điểm đóng điểm danh.
+
+
+Enrollments — Danh sách sinh viên trong lớp học phần
+
+- _id
+- sectionId: Mã lớp học phần, tham chiếu _id trong Sections.
+- studentId: tham chiếu _id trong Users; khác với mã sinh viên studentCode.
+- addedBy: Mã người dùng thực hiện thêm sinh viên, tham chiếu _id trong Users.
+- addedAt: Ngày, giờ thêm sinh viên vào lớp học phần.
+
+Attendance — Kết quả điểm danh
+
+- _id
+- sessionId: Mã buổi học, tham chiếu _id trong Sessions.
+- studentId: Mã định danh tài khoản sinh viên, tham chiếu _id trong Users.
+- checkInTime: Ngày, giờ sinh viên điểm danh; để null nếu sinh viên vắng.
+- status: Trạng thái điểm danh, gồm absent (vắng), late (trễ), present (có mặt).
+- deviceId: Máy đã ghi nhận điểm danh.
+- method: fingerprint (vân tay) hoặc manual (giảng viên cập nhật).
+- receivedAt: Thời điểm máy chủ nhận dữ liệu.
+
+Rooms — Phòng học
+- _id: Mã định danh phòng.
+- roomCode: Mã phòng, ví dụ A201; không được trùng trong cùng cơ sở.
+- building: Tòa nhà, ví dụ A.
+- campus: Cơ sở, nếu trường có nhiều cơ sở
+
+Devices — Máy điểm danh
+- _id: Mã định danh máy.
+- deviceCode: Mã máy, ví dụ FP001; không được trùng.
+- deviceName: Tên máy, ví dụ “Máy vân tay phòng A201”.
+- roomId: Phòng đang đặt máy, tham chiếu _id trong Rooms.
+- status: active (được phép hoạt động), disabled (đã khóa), maintenance (đang bảo trì).
+- lastSeenAt: Thời điểm máy liên lạc với máy chủ gần nhất.
+Mỗi máy cần có thông tin xác thực riêng để gửi dữ liệu. Máy chủ xác định máy từ thông tin xác thực đó, tránh tin vào deviceCode do thiết bị tự gửi lên.
+
+Fingerprints — Mẫu vân tay sinh viên
+- _id: Mã định danh mẫu vân tay.
+- studentId: Mã tài khoản sinh viên, tham chiếu _id trong Users.
+- fingerPosition: Ngón tay đăng ký, ví dụ rightIndex (ngón trỏ phải).
+- templateData: Dữ liệu mẫu đặc trưng vân tay đã được mã hóa.
+- templateFormat: Định dạng mẫu vân tay.
+- algorithmVersion: Phiên bản thuật toán dùng để tạo mẫu.
+- createdAt: Thời điểm đăng ký.
+- status: active (đang sử dụng), revoked (đã thu hồi).
+
