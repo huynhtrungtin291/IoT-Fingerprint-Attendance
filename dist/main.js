@@ -3,11 +3,12 @@ import * as __rspack_external__nestjs_common_a04939da from "@nestjs/common";
 import * as __rspack_external__nestjs_config_8f4d8a2e from "@nestjs/config";
 import * as __rspack_external__nestjs_core_d7b00a1a from "@nestjs/core";
 import * as __rspack_external__nestjs_jwt_50c0e0ae from "@nestjs/jwt";
-import * as __rspack_external__nestjs_mapped_types_c6767e13 from "@nestjs/mapped-types";
 import * as __rspack_external__nestjs_mongoose_8807637e from "@nestjs/mongoose";
+import * as __rspack_external__nestjs_platform_express_cb7ac6b9 from "@nestjs/platform-express";
 import * as __rspack_external_class_validator_7b99ef4d from "class-validator";
 import * as __rspack_external_cookie_parser_aab2ca3d from "cookie-parser";
 import * as __rspack_external_mongoose from "mongoose";
+import * as __rspack_external_xlsx from "xlsx";
 var __webpack_modules__ = ({
 "@nestjs/authentication"(module) {
 
@@ -39,15 +40,15 @@ module.exports = __rspack_external__nestjs_jwt_50c0e0ae;
 
 
 },
-"@nestjs/mapped-types"(module) {
-
-module.exports = __rspack_external__nestjs_mapped_types_c6767e13;
-
-
-},
 "@nestjs/mongoose"(module) {
 
 module.exports = __rspack_external__nestjs_mongoose_8807637e;
+
+
+},
+"@nestjs/platform-express"(module) {
+
+module.exports = __rspack_external__nestjs_platform_express_cb7ac6b9;
 
 
 },
@@ -66,6 +67,12 @@ module.exports = __rspack_external_cookie_parser_aab2ca3d;
 "mongoose"(module) {
 
 module.exports = __rspack_external_mongoose;
+
+
+},
+"xlsx"(module) {
+
+module.exports = __rspack_external_xlsx;
 
 
 },
@@ -145,6 +152,7 @@ __webpack_require__.d(__webpack_exports__, {
 /* import */ var _nestjs_config__rspack_import_5 = __webpack_require__("@nestjs/config");
 /* import */ var _auth_auth_module_js__rspack_import_6 = __webpack_require__("./src/auth/auth.module.ts");
 /* import */ var _common_guards_roles_guard_js__rspack_import_7 = __webpack_require__("./src/common/guards/roles.guard.ts");
+/* import */ var _class_class_module_js__rspack_import_8 = __webpack_require__("./src/class/class.module.ts");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -158,6 +166,7 @@ function _ts_decorate(decorators, target, key, desc) {
     }
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 }
+
 
 
 
@@ -183,7 +192,8 @@ AppModule = _ts_decorate([
                 ]
             }),
             _users_users_module_js__rspack_import_3.UsersModule,
-            _auth_auth_module_js__rspack_import_6.AuthModule
+            _auth_auth_module_js__rspack_import_6.AuthModule,
+            _class_class_module_js__rspack_import_8.ClassModule
         ],
         controllers: [
             _app_controller_js__rspack_import_1.AppController
@@ -234,10 +244,9 @@ __webpack_require__.d(__webpack_exports__, {
   AuthController: () => (AuthController)
 });
 /* import */ var _nestjs_common__rspack_import_0 = __webpack_require__("@nestjs/common");
-/* import */ var _auth_service_js__rspack_import_1 = __webpack_require__("./src/auth/auth.service.ts");
-/* import */ var _dto_signin_dto_js__rspack_import_2 = __webpack_require__("./src/auth/dto/signin.dto.ts");
-/* import */ var _nestjs_authentication__rspack_import_3 = __webpack_require__("@nestjs/authentication");
-/* import */ var _nestjs_core__rspack_import_4 = __webpack_require__("@nestjs/core");
+/* import */ var _nestjs_authentication__rspack_import_1 = __webpack_require__("@nestjs/authentication");
+/* import */ var _auth_service_js__rspack_import_2 = __webpack_require__("./src/auth/auth.service.ts");
+/* import */ var _dto_signin_dto_js__rspack_import_3 = __webpack_require__("./src/auth/dto/signin.dto.ts");
 function _define_property(obj, key, value) {
     if (key in obj) {
         Object.defineProperty(obj, key, {
@@ -276,55 +285,46 @@ function _ts_param(paramIndex, decorator) {
 
 
 
-
 class AuthController {
-    async signIn(signinDto, res) {
-        const data = await this.authService.signIn(signinDto);
-        if (!data.token) {
-            return {
-                statusCode: data.statusCode,
-                message: data.message
-            };
-        }
-        this.httpAdapterHost.httpAdapter.setCookie(res, 'refreshToken', data.token.refreshToken, {
+    getRefreshCookieOptions() {
+        return {
             signed: true,
             httpOnly: true,
-            secure: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/auth',
             maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+        };
+    }
+    async signIn(signinDto, res) {
+        const data = await this.authService.signIn(signinDto);
+        res.cookie('refreshToken', data.token.refreshToken, this.getRefreshCookieOptions());
         return {
-            statusCode: data.statusCode,
-            message: data.message,
+            statusCode: 200,
+            message: 'Đăng nhập thành công',
             accessToken: data.token.accessToken
         };
     }
     async refreshTokens(req, res) {
         const refreshToken = req.signedCookies?.refreshToken;
-        const userName = req.user.userName;
-        console.log('refreshToken: ' + refreshToken);
-        console.log('user:', userName);
-        const token = await this.authService.refreshTokens(userName, refreshToken);
-        this.httpAdapterHost.httpAdapter.setCookie(res, 'refreshToken', token.refreshToken, {
-            signed: true,
-            httpOnly: true,
-            secure: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+        if (typeof refreshToken !== 'string' || !refreshToken) {
+            throw new _nestjs_common__rspack_import_0.UnauthorizedException('Refresh token không tồn tại hoặc cookie không hợp lệ');
+        }
+        const tokens = await this.authService.refreshTokens(refreshToken);
+        res.cookie('refreshToken', tokens.refreshToken, this.getRefreshCookieOptions());
         return {
-            statusCode: "201",
-            message: "Cap nhap thanh cong",
-            accessToken: token.accessToken
+            statusCode: 200,
+            message: 'Cấp lại token thành công',
+            accessToken: tokens.accessToken
         };
     }
-    constructor(authService, httpAdapterHost){
+    constructor(authService){
         _define_property(this, "authService", void 0);
-        _define_property(this, "httpAdapterHost", void 0);
         this.authService = authService;
-        this.httpAdapterHost = httpAdapterHost;
     }
 }
 _ts_decorate([
-    (0,_nestjs_authentication__rspack_import_3.Public)(),
+    (0,_nestjs_authentication__rspack_import_1.Public)(),
     (0,_nestjs_common__rspack_import_0.Post)('signin'),
     _ts_param(0, (0,_nestjs_common__rspack_import_0.Body)()),
     _ts_param(1, (0,_nestjs_common__rspack_import_0.Res)({
@@ -332,13 +332,14 @@ _ts_decorate([
     })),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _dto_signin_dto_js__rspack_import_2.SigninDto === "undefined" ? Object : _dto_signin_dto_js__rspack_import_2.SigninDto,
+        typeof _dto_signin_dto_js__rspack_import_3.SigninDto === "undefined" ? Object : _dto_signin_dto_js__rspack_import_3.SigninDto,
         typeof Response === "undefined" ? Object : Response
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AuthController.prototype, "signIn", null);
 _ts_decorate([
-    (0,_nestjs_common__rspack_import_0.Post)('refresh'),
+    (0,_nestjs_authentication__rspack_import_1.Public)(),
+    (0,_nestjs_common__rspack_import_0.Post)('refresh-accessToken'),
     _ts_param(0, (0,_nestjs_common__rspack_import_0.Req)()),
     _ts_param(1, (0,_nestjs_common__rspack_import_0.Res)({
         passthrough: true
@@ -354,8 +355,7 @@ AuthController = _ts_decorate([
     (0,_nestjs_common__rspack_import_0.Controller)('auth'),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _auth_service_js__rspack_import_1.AuthService === "undefined" ? Object : _auth_service_js__rspack_import_1.AuthService,
-        typeof _nestjs_core__rspack_import_4.HttpAdapterHost === "undefined" ? Object : _nestjs_core__rspack_import_4.HttpAdapterHost
+        typeof _auth_service_js__rspack_import_2.AuthService === "undefined" ? Object : _auth_service_js__rspack_import_2.AuthService
     ])
 ], AuthController);
 
@@ -463,45 +463,44 @@ function _ts_metadata(metadataKey, metadataValue) {
 
 
 class AuthService {
-    async signIn(signinDto) {
-        console.log('userDto' + signinDto.userName);
-        const user = await this.usersService.findUserByUserNameWithPassword(signinDto.userName);
-        console.log('User: ' + user);
+    async signIn(dto) {
+        const user = await this.usersService.findUserByUserNameWithPassword(dto.userName);
         if (!user) {
-            return {
-                statusCode: '409',
-                message: 'Người dùng không tồn tại'
-            };
+            throw new _nestjs_common__rspack_import_0.UnauthorizedException('Tài khoản hoặc mật khẩu không đúng');
         }
-        const isPasswordValid = await this.usersService.checkPassword_RefreshToken(signinDto.password, user.passwordHash);
+        const isPasswordValid = await this.usersService.checkPassword_RefreshToken(dto.password, user.passwordHash);
         if (!isPasswordValid) {
-            return {
-                statusCode: '400',
-                message: 'Mật khẩu không chính xác'
-            };
+            throw new _nestjs_common__rspack_import_0.UnauthorizedException('Tài khoản hoặc mật khẩu không đúng');
         }
-        delete user.passwordHash;
-        const token = await this.generateTokens(user);
+        const tokens = await this.generateTokens(user);
         return {
-            statusCode: '200',
+            statusCode: 200,
             message: 'Đăng nhập thành công',
-            token: token
+            token: tokens
         };
     }
     async generateTokens(user) {
         const payload = {
             _id: user._id.toString(),
             fullName: user.fullName,
-            role: user.role,
-            userName: user.userName
+            userName: user.userName,
+            role: user.role
         };
+        if (user.studentCode) {
+            payload.studentCode = user.studentCode;
+        }
+        if (user.classId) {
+            payload.classId = user.classId.toString();
+        }
         const accessToken = await this.jwtService.signAsync(payload, {
-            secret: process.env.JWT_ACCESS_SECRET,
+            secret: this.accessSecret,
             expiresIn: '1h'
         });
         const refreshToken = await this.jwtService.signAsync(payload, {
-            secret: process.env.JWT_REFRESH_SECRET,
-            expiresIn: '7d'
+            secret: this.refreshSecret,
+            expiresIn: '7d',
+            // Giúp mỗi refresh token có giá trị riêng.
+            jwtid: crypto.randomUUID()
         });
         await this.usersService.updateRefreshToken(user._id.toString(), refreshToken);
         return {
@@ -509,29 +508,45 @@ class AuthService {
             refreshToken
         };
     }
-    async refreshTokens(userName, refreshToken) {
-        const user = await this.usersService.finUserByUserNameWithRefreshToken(userName);
-        if (!user || !user.refreshToken) {
-            return {
-                statusCode: '404',
-                message: 'Người dùng không tồn tại hoặc chưa có refresh token'
-            };
+    async refreshTokens(refreshToken) {
+        let payload;
+        // Kiểm tra chữ ký và hạn dùng.
+        try {
+            payload = await this.jwtService.verifyAsync(refreshToken, {
+                secret: this.refreshSecret
+            });
+        } catch  {
+            throw new _nestjs_common__rspack_import_0.UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
         }
+        if (typeof payload._id !== 'string' || typeof payload.userName !== 'string') {
+            throw new _nestjs_common__rspack_import_0.UnauthorizedException('Refresh token không hợp lệ');
+        }
+        const user = await this.usersService.finUserByUserNameWithRefreshToken(payload.userName);
+        if (!user || !user.refreshToken || user._id.toString() !== payload._id) {
+            throw new _nestjs_common__rspack_import_0.UnauthorizedException('Phiên đăng nhập không hợp lệ');
+        }
+        // Kiểm tra token có khớp với hash đang lưu trong database.
         const isValid = await this.usersService.checkPassword_RefreshToken(refreshToken, user.refreshToken);
         if (!isValid) {
-            return {
-                statusCode: '401',
-                message: 'RefreshToken không hợp lệ hoặc không đúng'
-            };
+            throw new _nestjs_common__rspack_import_0.UnauthorizedException('Refresh token không hợp lệ hoặc đã bị thu hồi');
         }
-        const { refreshToken: _refreshToken, ...userWithoutRefreshToken } = user.toObject();
-        return await this.generateTokens(userWithoutRefreshToken);
+        // Cấp cặp token mới và thay hash refresh token trong database.
+        return this.generateTokens(user);
     }
     constructor(usersService, jwtService){
         _define_property(this, "usersService", void 0);
         _define_property(this, "jwtService", void 0);
+        _define_property(this, "accessSecret", void 0);
+        _define_property(this, "refreshSecret", void 0);
         this.usersService = usersService;
         this.jwtService = jwtService;
+        const accessSecret = process.env.JWT_ACCESS_SECRET;
+        const refreshSecret = process.env.JWT_REFRESH_SECRET;
+        if (!accessSecret || !refreshSecret) {
+            throw new Error('Thiếu JWT_ACCESS_SECRET hoặc JWT_REFRESH_SECRET');
+        }
+        this.accessSecret = accessSecret;
+        this.refreshSecret = refreshSecret;
     }
 }
 AuthService = _ts_decorate([
@@ -597,6 +612,347 @@ _ts_decorate([
     (0,class_validator__rspack_import_0.IsNotEmpty)(),
     _ts_metadata("design:type", String)
 ], SigninDto.prototype, "password", void 0);
+
+
+},
+"./src/class/class.controller.ts"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  ClassController: () => (ClassController)
+});
+/* import */ var _nestjs_common__rspack_import_0 = __webpack_require__("@nestjs/common");
+/* import */ var _class_service_js__rspack_import_1 = __webpack_require__("./src/class/class.service.ts");
+/* import */ var _dto_create_class_dto_js__rspack_import_2 = __webpack_require__("./src/class/dto/create-class.dto.ts");
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else obj[key] = value;
+    return obj;
+}
+function _ts_decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
+        r = Reflect.decorate(decorators, target, key, desc);
+    } else {
+        for(var i = decorators.length - 1; i >= 0; i--){
+            if (d = decorators[i]) {
+                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+            }
+        }
+    }
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+function _ts_metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") {
+        return Reflect.metadata(metadataKey, metadataValue);
+    }
+}
+function _ts_param(paramIndex, decorator) {
+    return function(target, key) {
+        decorator(target, key, paramIndex);
+    };
+}
+
+
+
+class ClassController {
+    create(dto) {
+        return this.classService.createClass(dto);
+    }
+    remove(id) {
+        return this.classService.remove(id);
+    }
+    constructor(classService){
+        _define_property(this, "classService", void 0);
+        this.classService = classService;
+    }
+}
+_ts_decorate([
+    (0,_nestjs_common__rspack_import_0.Post)('create'),
+    _ts_param(0, (0,_nestjs_common__rspack_import_0.Body)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof _dto_create_class_dto_js__rspack_import_2.CreateClassDto === "undefined" ? Object : _dto_create_class_dto_js__rspack_import_2.CreateClassDto
+    ]),
+    _ts_metadata("design:returntype", void 0)
+], ClassController.prototype, "create", null);
+_ts_decorate([
+    (0,_nestjs_common__rspack_import_0.Delete)(':id'),
+    _ts_param(0, (0,_nestjs_common__rspack_import_0.Param)('id')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String
+    ]),
+    _ts_metadata("design:returntype", void 0)
+], ClassController.prototype, "remove", null);
+ClassController = _ts_decorate([
+    (0,_nestjs_common__rspack_import_0.Controller)('classes'),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof _class_service_js__rspack_import_1.ClassService === "undefined" ? Object : _class_service_js__rspack_import_1.ClassService
+    ])
+], ClassController);
+
+
+},
+"./src/class/class.module.ts"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  ClassModule: () => (ClassModule)
+});
+/* import */ var _nestjs_common__rspack_import_0 = __webpack_require__("@nestjs/common");
+/* import */ var _nestjs_mongoose__rspack_import_1 = __webpack_require__("@nestjs/mongoose");
+/* import */ var _class_service_js__rspack_import_2 = __webpack_require__("./src/class/class.service.ts");
+/* import */ var _class_controller_js__rspack_import_3 = __webpack_require__("./src/class/class.controller.ts");
+/* import */ var _schema_class_schema_js__rspack_import_4 = __webpack_require__("./src/class/schema/class.schema.ts");
+function _ts_decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
+        r = Reflect.decorate(decorators, target, key, desc);
+    } else {
+        for(var i = decorators.length - 1; i >= 0; i--){
+            if (d = decorators[i]) {
+                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+            }
+        }
+    }
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+
+
+
+
+
+class ClassModule {
+}
+ClassModule = _ts_decorate([
+    (0,_nestjs_common__rspack_import_0.Module)({
+        imports: [
+            _nestjs_mongoose__rspack_import_1.MongooseModule.forFeature([
+                {
+                    name: 'Class',
+                    schema: _schema_class_schema_js__rspack_import_4.ClassSchema
+                }
+            ])
+        ],
+        controllers: [
+            _class_controller_js__rspack_import_3.ClassController
+        ],
+        providers: [
+            _class_service_js__rspack_import_2.ClassService
+        ],
+        exports: [
+            _class_service_js__rspack_import_2.ClassService
+        ]
+    })
+], ClassModule);
+
+
+},
+"./src/class/class.service.ts"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  ClassService: () => (ClassService)
+});
+/* import */ var _nestjs_common__rspack_import_0 = __webpack_require__("@nestjs/common");
+/* import */ var _nestjs_mongoose__rspack_import_1 = __webpack_require__("@nestjs/mongoose");
+/* import */ var mongoose__rspack_import_2 = __webpack_require__("mongoose");
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else obj[key] = value;
+    return obj;
+}
+function _ts_decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
+        r = Reflect.decorate(decorators, target, key, desc);
+    } else {
+        for(var i = decorators.length - 1; i >= 0; i--){
+            if (d = decorators[i]) {
+                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+            }
+        }
+    }
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+function _ts_metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") {
+        return Reflect.metadata(metadataKey, metadataValue);
+    }
+}
+function _ts_param(paramIndex, decorator) {
+    return function(target, key) {
+        decorator(target, key, paramIndex);
+    };
+}
+
+
+
+class ClassService {
+    async createClass(dto) {
+        const exists = await this.classModel.exists({
+            classCode: dto.classCode
+        });
+        if (exists) {
+            throw new _nestjs_common__rspack_import_0.ConflictException('Mã lớp đã tồn tại');
+        }
+        return this.classModel.create(dto);
+    }
+    async remove(id) {
+        const classData = await this.classModel.findByIdAndDelete(id).exec();
+        if (!classData) {
+            throw new _nestjs_common__rspack_import_0.NotFoundException('Lớp không tồn tại');
+        }
+        return {
+            message: 'Xóa lớp thành công'
+        };
+    }
+    constructor(classModel){
+        _define_property(this, "classModel", void 0);
+        this.classModel = classModel;
+    }
+}
+ClassService = _ts_decorate([
+    (0,_nestjs_common__rspack_import_0.Injectable)(),
+    _ts_param(0, (0,_nestjs_mongoose__rspack_import_1.InjectModel)('Class')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof mongoose__rspack_import_2.Model === "undefined" ? Object : mongoose__rspack_import_2.Model
+    ])
+], ClassService);
+
+
+},
+"./src/class/dto/create-class.dto.ts"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  CreateClassDto: () => (CreateClassDto)
+});
+/* import */ var class_validator__rspack_import_0 = __webpack_require__("class-validator");
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else obj[key] = value;
+    return obj;
+}
+function _ts_decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
+        r = Reflect.decorate(decorators, target, key, desc);
+    } else {
+        for(var i = decorators.length - 1; i >= 0; i--){
+            if (d = decorators[i]) {
+                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+            }
+        }
+    }
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+function _ts_metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") {
+        return Reflect.metadata(metadataKey, metadataValue);
+    }
+}
+
+class CreateClassDto {
+    constructor(){
+        _define_property(this, "classCode", void 0);
+        _define_property(this, "className", void 0);
+    }
+}
+_ts_decorate([
+    (0,class_validator__rspack_import_0.IsString)(),
+    (0,class_validator__rspack_import_0.IsNotEmpty)(),
+    _ts_metadata("design:type", String)
+], CreateClassDto.prototype, "classCode", void 0);
+_ts_decorate([
+    (0,class_validator__rspack_import_0.IsString)(),
+    (0,class_validator__rspack_import_0.IsNotEmpty)(),
+    _ts_metadata("design:type", String)
+], CreateClassDto.prototype, "className", void 0);
+
+
+},
+"./src/class/schema/class.schema.ts"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
+  Class: () => (Class),
+  ClassSchema: () => (ClassSchema)
+});
+/* import */ var _nestjs_mongoose__rspack_import_0 = __webpack_require__("@nestjs/mongoose");
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else obj[key] = value;
+    return obj;
+}
+function _ts_decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
+        r = Reflect.decorate(decorators, target, key, desc);
+    } else {
+        for(var i = decorators.length - 1; i >= 0; i--){
+            if (d = decorators[i]) {
+                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+            }
+        }
+    }
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+function _ts_metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") {
+        return Reflect.metadata(metadataKey, metadataValue);
+    }
+}
+
+class Class {
+    constructor(){
+        _define_property(this, "classCode", void 0);
+        _define_property(this, "className", void 0);
+    }
+}
+_ts_decorate([
+    (0,_nestjs_mongoose__rspack_import_0.Prop)({
+        required: true,
+        unique: true,
+        trim: true
+    }),
+    _ts_metadata("design:type", String)
+], Class.prototype, "classCode", void 0);
+_ts_decorate([
+    (0,_nestjs_mongoose__rspack_import_0.Prop)({
+        required: true,
+        trim: true
+    }),
+    _ts_metadata("design:type", String)
+], Class.prototype, "className", void 0);
+Class = _ts_decorate([
+    (0,_nestjs_mongoose__rspack_import_0.Schema)({
+        timestamps: true
+    })
+], Class);
+const ClassSchema = _nestjs_mongoose__rspack_import_0.SchemaFactory.createForClass(Class);
 
 
 },
@@ -861,17 +1217,58 @@ _ts_decorate([
 
 
 },
-"./src/users/dto/update-user.dto.ts"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
+"./src/users/dto/update-passwrod.dto.ts"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
 __webpack_require__.r(__webpack_exports__);
 __webpack_require__.d(__webpack_exports__, {
-  UpdateUserDto: () => (UpdateUserDto)
+  UpdatePasswordDto: () => (UpdatePasswordDto)
 });
-/* import */ var _nestjs_mapped_types__rspack_import_0 = __webpack_require__("@nestjs/mapped-types");
-/* import */ var _create_user_dto_js__rspack_import_1 = __webpack_require__("./src/users/dto/create-user.dto.ts");
-
-
-class UpdateUserDto extends (0,_nestjs_mapped_types__rspack_import_0.PartialType)(_create_user_dto_js__rspack_import_1.CreateUserDto) {
+/* import */ var class_validator__rspack_import_0 = __webpack_require__("class-validator");
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else obj[key] = value;
+    return obj;
 }
+function _ts_decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
+        r = Reflect.decorate(decorators, target, key, desc);
+    } else {
+        for(var i = decorators.length - 1; i >= 0; i--){
+            if (d = decorators[i]) {
+                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+            }
+        }
+    }
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+function _ts_metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") {
+        return Reflect.metadata(metadataKey, metadataValue);
+    }
+}
+
+class UpdatePasswordDto {
+    constructor(){
+        _define_property(this, "oldPassword", void 0);
+        _define_property(this, "newPassword", void 0);
+    }
+}
+_ts_decorate([
+    (0,class_validator__rspack_import_0.IsString)(),
+    (0,class_validator__rspack_import_0.IsNotEmpty)(),
+    _ts_metadata("design:type", String)
+], UpdatePasswordDto.prototype, "oldPassword", void 0);
+_ts_decorate([
+    (0,class_validator__rspack_import_0.IsString)(),
+    (0,class_validator__rspack_import_0.IsNotEmpty)(),
+    _ts_metadata("design:type", String)
+], UpdatePasswordDto.prototype, "newPassword", void 0);
 
 
 },
@@ -963,6 +1360,7 @@ _ts_decorate([
             return this.role === _common_enum_user_enum_js__rspack_import_2.UserRole.STUDENT;
         },
         sparse: true,
+        unique: true,
         trim: true
     }),
     _ts_metadata("design:type", String)
@@ -999,9 +1397,11 @@ __webpack_require__.d(__webpack_exports__, {
   UsersController: () => (UsersController)
 });
 /* import */ var _nestjs_common__rspack_import_0 = __webpack_require__("@nestjs/common");
-/* import */ var _users_service_js__rspack_import_1 = __webpack_require__("./src/users/users.service.ts");
-/* import */ var _dto_create_user_dto_js__rspack_import_2 = __webpack_require__("./src/users/dto/create-user.dto.ts");
-/* import */ var _dto_update_user_dto_js__rspack_import_3 = __webpack_require__("./src/users/dto/update-user.dto.ts");
+/* import */ var _nestjs_platform_express__rspack_import_1 = __webpack_require__("@nestjs/platform-express");
+/* import */ var _users_service_js__rspack_import_2 = __webpack_require__("./src/users/users.service.ts");
+/* import */ var _dto_create_user_dto_js__rspack_import_3 = __webpack_require__("./src/users/dto/create-user.dto.ts");
+/* import */ var _dto_update_passwrod_dto_js__rspack_import_4 = __webpack_require__("./src/users/dto/update-passwrod.dto.ts");
+/* import */ var _nestjs_authentication__rspack_import_5 = __webpack_require__("@nestjs/authentication");
 function _define_property(obj, key, value) {
     if (key in obj) {
         Object.defineProperty(obj, key, {
@@ -1040,21 +1440,21 @@ function _ts_param(paramIndex, decorator) {
 
 
 
+
+
 class UsersController {
-    create(createUserDto) {
-        return this.usersService.createUser(createUserDto);
+    create(dto) {
+        return this.usersService.createUser(dto);
     }
-    findAll() {
-        return this.usersService.findAll();
+    updatePassword(dto, req) {
+        console.log('_id', req.user._id, typeof req.user._id);
+        return this.usersService.updatePassword(dto, req.user._id);
     }
-    findOne(id) {
-        return this.usersService.findOne(+id);
-    }
-    update(id, updateUserDto) {
-        return this.usersService.update(+id, updateUserDto);
-    }
-    remove(id) {
-        return this.usersService.remove(+id);
+    importStudents(classId, file) {
+        if (!file) {
+            throw new _nestjs_common__rspack_import_0.BadRequestException('Vui lòng gửi file Excel');
+        }
+        return this.usersService.importStudentsToClass(classId, file);
     }
     constructor(usersService){
         _define_property(this, "usersService", void 0);
@@ -1062,54 +1462,43 @@ class UsersController {
     }
 }
 _ts_decorate([
+    (0,_nestjs_authentication__rspack_import_5.Public)(),
     (0,_nestjs_common__rspack_import_0.Post)('create'),
     _ts_param(0, (0,_nestjs_common__rspack_import_0.Body)()),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _dto_create_user_dto_js__rspack_import_2.CreateUserDto === "undefined" ? Object : _dto_create_user_dto_js__rspack_import_2.CreateUserDto
+        typeof _dto_create_user_dto_js__rspack_import_3.CreateUserDto === "undefined" ? Object : _dto_create_user_dto_js__rspack_import_3.CreateUserDto
     ]),
     _ts_metadata("design:returntype", void 0)
 ], UsersController.prototype, "create", null);
 _ts_decorate([
-    (0,_nestjs_common__rspack_import_0.Get)(),
-    _ts_metadata("design:type", Function),
-    _ts_metadata("design:paramtypes", []),
-    _ts_metadata("design:returntype", void 0)
-], UsersController.prototype, "findAll", null);
-_ts_decorate([
-    (0,_nestjs_common__rspack_import_0.Get)(':id'),
-    _ts_param(0, (0,_nestjs_common__rspack_import_0.Param)('id')),
+    (0,_nestjs_common__rspack_import_0.Patch)('updatePassword'),
+    _ts_param(0, (0,_nestjs_common__rspack_import_0.Body)()),
+    _ts_param(1, (0,_nestjs_common__rspack_import_0.Req)()),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        String
+        typeof _dto_update_passwrod_dto_js__rspack_import_4.UpdatePasswordDto === "undefined" ? Object : _dto_update_passwrod_dto_js__rspack_import_4.UpdatePasswordDto,
+        typeof AuthenticatedRequest === "undefined" ? Object : AuthenticatedRequest
     ]),
     _ts_metadata("design:returntype", void 0)
-], UsersController.prototype, "findOne", null);
+], UsersController.prototype, "updatePassword", null);
 _ts_decorate([
-    (0,_nestjs_common__rspack_import_0.Patch)(':id'),
-    _ts_param(0, (0,_nestjs_common__rspack_import_0.Param)('id')),
-    _ts_param(1, (0,_nestjs_common__rspack_import_0.Body)()),
+    (0,_nestjs_common__rspack_import_0.Post)(':classId/import'),
+    (0,_nestjs_common__rspack_import_0.UseInterceptors)((0,_nestjs_platform_express__rspack_import_1.FileInterceptor)('file')),
+    _ts_param(0, (0,_nestjs_common__rspack_import_0.Param)('classId')),
+    _ts_param(1, (0,_nestjs_common__rspack_import_0.UploadedFile)()),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
         String,
-        typeof _dto_update_user_dto_js__rspack_import_3.UpdateUserDto === "undefined" ? Object : _dto_update_user_dto_js__rspack_import_3.UpdateUserDto
+        typeof Express === "undefined" || typeof Express.Multer === "undefined" || typeof Express.Multer.File === "undefined" ? Object : Express.Multer.File
     ]),
     _ts_metadata("design:returntype", void 0)
-], UsersController.prototype, "update", null);
-_ts_decorate([
-    (0,_nestjs_common__rspack_import_0.Delete)(':id'),
-    _ts_param(0, (0,_nestjs_common__rspack_import_0.Param)('id')),
-    _ts_metadata("design:type", Function),
-    _ts_metadata("design:paramtypes", [
-        String
-    ]),
-    _ts_metadata("design:returntype", void 0)
-], UsersController.prototype, "remove", null);
+], UsersController.prototype, "importStudents", null);
 UsersController = _ts_decorate([
     (0,_nestjs_common__rspack_import_0.Controller)('users'),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _users_service_js__rspack_import_1.UsersService === "undefined" ? Object : _users_service_js__rspack_import_1.UsersService
+        typeof _users_service_js__rspack_import_2.UsersService === "undefined" ? Object : _users_service_js__rspack_import_2.UsersService
     ])
 ], UsersController);
 
@@ -1126,6 +1515,7 @@ __webpack_require__.d(__webpack_exports__, {
 /* import */ var _nestjs_mongoose__rspack_import_3 = __webpack_require__("@nestjs/mongoose");
 /* import */ var _schema_user_schema_js__rspack_import_4 = __webpack_require__("./src/users/schema/user.schema.ts");
 /* import */ var _nestjs_authentication__rspack_import_5 = __webpack_require__("@nestjs/authentication");
+/* import */ var _class_schema_class_schema_js__rspack_import_6 = __webpack_require__("./src/class/schema/class.schema.ts");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -1145,6 +1535,7 @@ function _ts_decorate(decorators, target, key, desc) {
 
 
 
+
 class UsersModule {
 }
 UsersModule = _ts_decorate([
@@ -1154,6 +1545,10 @@ UsersModule = _ts_decorate([
                 {
                     name: 'User',
                     schema: _schema_user_schema_js__rspack_import_4.UserSchema
+                },
+                {
+                    name: 'Class',
+                    schema: _class_schema_class_schema_js__rspack_import_6.ClassSchema
                 }
             ])
         ],
@@ -1178,9 +1573,11 @@ __webpack_require__.d(__webpack_exports__, {
   UsersService: () => (UsersService)
 });
 /* import */ var _nestjs_common__rspack_import_0 = __webpack_require__("@nestjs/common");
-/* import */ var mongoose__rspack_import_1 = __webpack_require__("mongoose");
-/* import */ var _nestjs_mongoose__rspack_import_2 = __webpack_require__("@nestjs/mongoose");
-/* import */ var _nestjs_authentication__rspack_import_3 = __webpack_require__("@nestjs/authentication");
+/* import */ var _nestjs_mongoose__rspack_import_1 = __webpack_require__("@nestjs/mongoose");
+/* import */ var _nestjs_authentication__rspack_import_2 = __webpack_require__("@nestjs/authentication");
+/* import */ var mongoose__rspack_import_3 = __webpack_require__("mongoose");
+/* import */ var xlsx__rspack_import_4 = __webpack_require__("xlsx");
+/* import */ var _common_enum_user_enum_js__rspack_import_5 = __webpack_require__("./src/common/enum/user.enum.ts");
 function _define_property(obj, key, value) {
     if (key in obj) {
         Object.defineProperty(obj, key, {
@@ -1219,91 +1616,200 @@ function _ts_param(paramIndex, decorator) {
 
 
 
+
+
 class UsersService {
-    async createUser(createUserDto) {
-        const isExists = await this.isUserExist(createUserDto.userName);
-        if (isExists == true) {
-            return {
-                statuscode: '409',
-                message: 'Người dùng đã tồn tại'
-            };
+    async createUser(dto) {
+        const isExists = await this.isUserExist(dto.userName);
+        if (isExists) {
+            throw new _nestjs_common__rspack_import_0.ConflictException('Người dùng đã tồn tại');
         }
-        const hashedPassword = await this.hashPassword_RefreshToken(createUserDto.password);
+        const { password, ...userData } = dto;
+        const hashedPassword = await this.hashPassword_RefreshToken(password);
         const createdUser = new this.userModel({
-            ...createUserDto,
+            ...userData,
             passwordHash: hashedPassword
         });
         await createdUser.save();
-        const { passwordHash, ...userWithoutPassword } = createdUser.toObject();
+        const { passwordHash, refreshToken, ...userWithoutSecrets } = createdUser.toObject();
         return {
-            statusCode: '201',
+            statusCode: 201,
             message: 'Tạo người dùng thành công',
-            data: userWithoutPassword
+            data: userWithoutSecrets
         };
     }
     async updateRefreshToken(userId, refreshToken) {
         const hashedRefreshToken = refreshToken ? await this.hashPassword_RefreshToken(refreshToken) : null;
         await this.userModel.findByIdAndUpdate(userId, {
-            refreshToken: hashedRefreshToken
+            $set: {
+                refreshToken: hashedRefreshToken
+            }
         });
     }
-    // --hepler
-    async isUserExist(userName) {
-        const result = await this.userModel.exists({
-            userName
+    async updatePassword(dto, userId) {
+        const user = await this.findUserByUserNameWithPassword(undefined, userId);
+        if (!user) {
+            throw new _nestjs_common__rspack_import_0.NotFoundException('Người dùng không tồn tại');
+        }
+        const isPasswordValid = await this.checkPassword_RefreshToken(dto.oldPassword, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new _nestjs_common__rspack_import_0.BadRequestException('Mật khẩu hiện tại không đúng');
+        }
+        const newPasswordHash = await this.hashPassword_RefreshToken(dto.newPassword);
+        await this.userModel.findByIdAndUpdate(userId, {
+            $set: {
+                passwordHash: newPasswordHash
+            }
         });
-        return !!result;
+        return {
+            statusCode: 200,
+            message: 'Cập nhật mật khẩu thành công'
+        };
+    }
+    async importStudentsToClass(classId, file) {
+        if (!mongoose__rspack_import_3.Types.ObjectId.isValid(classId)) {
+            throw new _nestjs_common__rspack_import_0.BadRequestException('Mã lớp không hợp lệ');
+        }
+        const classExists = await this.classModel.exists({
+            _id: classId
+        });
+        if (!classExists) {
+            throw new _nestjs_common__rspack_import_0.NotFoundException('Lớp không tồn tại');
+        }
+        const workbook = xlsx__rspack_import_4.read(file.buffer, {
+            type: 'buffer'
+        });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        if (!firstSheet) {
+            throw new _nestjs_common__rspack_import_0.BadRequestException('File Excel không có sheet dữ liệu');
+        }
+        const rows = xlsx__rspack_import_4.utils.sheet_to_json(firstSheet, {
+            defval: ''
+        });
+        if (rows.length === 0) {
+            throw new _nestjs_common__rspack_import_0.BadRequestException('File Excel không có dữ liệu');
+        }
+        const students = rows.map((row, index)=>{
+            const fullName = String(row.fullName ?? '').trim();
+            const studentCode = String(row.studentCode ?? '').trim();
+            const userName = String(row.userName ?? '').trim() || studentCode;
+            const password = String(row.password ?? '').trim() || studentCode;
+            if (!fullName || !studentCode) {
+                throw new _nestjs_common__rspack_import_0.BadRequestException(`Dòng ${index + 2} phải có fullName và studentCode`);
+            }
+            return {
+                fullName,
+                studentCode,
+                userName,
+                password
+            };
+        });
+        const studentCodes = students.map((student)=>student.studentCode);
+        const userNames = students.map((student)=>student.userName);
+        const duplicateStudentCodes = new Set(studentCodes.filter((code, index)=>studentCodes.indexOf(code) !== index));
+        const duplicateUserNames = new Set(userNames.filter((name, index)=>userNames.indexOf(name) !== index));
+        const existingUsers = await this.userModel.find({
+            $or: [
+                {
+                    studentCode: {
+                        $in: studentCodes
+                    }
+                },
+                {
+                    userName: {
+                        $in: userNames
+                    }
+                }
+            ]
+        }).select('studentCode userName').lean().exec();
+        for (const student of existingUsers){
+            if (student.studentCode) {
+                duplicateStudentCodes.add(student.studentCode);
+            }
+            duplicateUserNames.add(student.userName);
+        }
+        if (duplicateStudentCodes.size > 0 || duplicateUserNames.size > 0) {
+            throw new _nestjs_common__rspack_import_0.ConflictException('File có mã sinh viên hoặc tên đăng nhập đã tồn tại');
+        }
+        const users = await Promise.all(students.map(async ({ password, ...student })=>({
+                ...student,
+                role: _common_enum_user_enum_js__rspack_import_5.UserRole.STUDENT,
+                classId: new mongoose__rspack_import_3.Types.ObjectId(classId),
+                passwordHash: await this.hashPassword_RefreshToken(password)
+            })));
+        const createdUsers = await this.userModel.insertMany(users, {
+            ordered: true
+        });
+        return {
+            statusCode: 201,
+            message: `Đã thêm ${createdUsers.length} học sinh vào lớp`,
+            data: createdUsers.map(({ passwordHash, ...user })=>user)
+        };
+    }
+    // Helpers
+    async isUserExist(userName, userId) {
+        if (userName) {
+            const result = await this.userModel.exists({
+                userName
+            });
+            return !!result;
+        }
+        if (userId) {
+            const result = await this.userModel.exists({
+                _id: userId
+            });
+            return !!result;
+        }
+        return false;
     }
     async hashPassword_RefreshToken(password) {
         return this.passwordHasher.hash(password);
     }
     async checkPassword_RefreshToken(password, storedHash) {
+        if (!storedHash) {
+            return false;
+        }
         return this.passwordHasher.verify(password, storedHash);
     }
-    async findUserByUserNameWithPassword(userName) {
-        const user = await this.userModel.findOne({
-            userName
-        }).select('+passwordHash').exec();
-        return user;
+    async findUserByUserNameWithPassword(userName, userId) {
+        if (userName) {
+            return this.userModel.findOne({
+                userName
+            }).select('+passwordHash').exec();
+        }
+        if (userId) {
+            return this.userModel.findById(userId).select('+passwordHash').exec();
+        }
+        return null;
     }
     async finUserByUserNameWithRefreshToken(userName) {
-        const user = await this.userModel.findOne({
+        return this.userModel.findOne({
             userName
         }).select('+refreshToken').exec();
-        return user;
     }
     async findUserByUserName(userName) {
-        const user = await this.userModel.findOne({
+        return this.userModel.findOne({
             userName
         }).exec();
-        return user;
     }
-    findAll() {
-        return `This action returns all users`;
-    }
-    findOne(id) {
-        return `This action returns a #${id} user`;
-    }
-    update(id, updateUserDto) {
-        return `This action updates a #${id} user`;
-    }
-    remove(id) {
-        return `This action removes a #${id} user`;
-    }
-    constructor(userModel, passwordHasher){
+    constructor(userModel, classModel, passwordHasher){
         _define_property(this, "userModel", void 0);
+        _define_property(this, "classModel", void 0);
         _define_property(this, "passwordHasher", void 0);
         this.userModel = userModel;
+        this.classModel = classModel;
         this.passwordHasher = passwordHasher;
     }
 }
 UsersService = _ts_decorate([
     (0,_nestjs_common__rspack_import_0.Injectable)(),
-    _ts_param(0, (0,_nestjs_mongoose__rspack_import_2.InjectModel)('User')),
+    _ts_param(0, (0,_nestjs_mongoose__rspack_import_1.InjectModel)('User')),
+    _ts_param(1, (0,_nestjs_mongoose__rspack_import_1.InjectModel)('Class')),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof mongoose__rspack_import_1.Model === "undefined" ? Object : mongoose__rspack_import_1.Model,
-        typeof _nestjs_authentication__rspack_import_3.PasswordHasher === "undefined" ? Object : _nestjs_authentication__rspack_import_3.PasswordHasher
+        typeof mongoose__rspack_import_3.Model === "undefined" ? Object : mongoose__rspack_import_3.Model,
+        typeof mongoose__rspack_import_3.Model === "undefined" ? Object : mongoose__rspack_import_3.Model,
+        typeof _nestjs_authentication__rspack_import_2.PasswordHasher === "undefined" ? Object : _nestjs_authentication__rspack_import_2.PasswordHasher
     ])
 ], UsersService);
 

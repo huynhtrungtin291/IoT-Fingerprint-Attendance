@@ -24,6 +24,7 @@ export class User {
       return this.role === UserRole.STUDENT;
     },
     sparse: true,
+    unique: true,
     trim: true,
   })
   studentCode?: string;

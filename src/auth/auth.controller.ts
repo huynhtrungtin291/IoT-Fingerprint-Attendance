@@ -1,77 +1,64 @@
-import { Body, Controller, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Public } from '@nestjs/authentication';
+import type { CookieOptions, Request, Response } from 'express';
+
 import { AuthService } from './auth.service.js';
 import { SigninDto } from './dto/signin.dto.js';
-import { Public } from '@nestjs/authentication';
-import { HttpAdapterHost } from '@nestjs/core';
-import type { Request, Response } from 'express';
+
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly httpAdapterHost: HttpAdapterHost,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
+
+  private getRefreshCookieOptions(): CookieOptions {
+    return {
+      signed: true,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/auth',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+  }
+
   @Public()
   @Post('signin')
   async signIn(
     @Body() signinDto: SigninDto,
     @Res({ passthrough: true }) res: Response,
   ) {
+
     const data = await this.authService.signIn(signinDto);
-
-    if (!data.token) {
-      return {
-        statusCode: data.statusCode,
-        message: data.message,
-      };
-    }
-
-    this.httpAdapterHost.httpAdapter.setCookie(
-      res,
-      'refreshToken',
-      data.token.refreshToken,
-      {
-        signed: true,
-        httpOnly: true,
-        secure: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      },
-    );
+    res.cookie('refreshToken', data.token.refreshToken, this.getRefreshCookieOptions());
 
     return {
-      statusCode: data.statusCode,
-      message: data.message,
+      statusCode: 200,
+      message: 'Đăng nhập thành công',
       accessToken: data.token.accessToken,
     };
   }
 
-  @Post('refresh')
+  @Public()
+  @Post('refresh-accessToken')
   async refreshTokens(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-
     const refreshToken = req.signedCookies?.refreshToken;
-    const userName = req.user.userName;
-    console.log('refreshToken: ' + refreshToken);
-    console.log('user:', userName);
-    const token = await this.authService.refreshTokens(userName, refreshToken);
 
-    this.httpAdapterHost.httpAdapter.setCookie(
-       res,
-       'refreshToken',
-       token.refreshToken,
-       {
-         signed: true,
-         httpOnly: true,
-         secure: true,
-         maxAge: 7 * 24 * 60 * 60 * 1000,
-       },
-     );
+    if (typeof refreshToken !== 'string' || !refreshToken) {
+      throw new UnauthorizedException(
+        'Refresh token không tồn tại hoặc cookie không hợp lệ',
+      );
+    }
+
+    const tokens = await this.authService.refreshTokens(refreshToken);
+
+    res.cookie( 'refreshToken', tokens.refreshToken, this.getRefreshCookieOptions() );
 
     return {
-      statusCode: "201",
-      message: "Cap nhap thanh cong",
-      accessToken: token.accessToken,
+      statusCode: 200,
+      message: 'Cấp lại token thành công',
+      accessToken: tokens.accessToken,
     };
   }
 }

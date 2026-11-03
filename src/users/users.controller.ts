@@ -1,34 +1,53 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Req,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
-import { UpdateUserDto } from './dto/update-user.dto.js';
-
+import { UpdatePasswordDto } from './dto/update-passwrod.dto.js';
+import type { AuthenticatedRequest } from '../common/interfaces/authenticated.request.interface.js';
+import { Public } from '@nestjs/authentication';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Public()
   @Post('create')
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.createUser(createUserDto);
+  create(@Body() dto: CreateUserDto) {
+    return this.usersService.createUser(dto);
   }
 
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Patch('updatePassword')
+  updatePassword(
+    @Body() dto: UpdatePasswordDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    console.log('_id', req.user._id, typeof req.user._id);
+    return this.usersService.updatePassword(dto, req.user._id);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+  @Post(':classId/import')
+  @UseInterceptors(FileInterceptor('file'))
+  importStudents(
+    @Param('classId') classId: string,
+    @UploadedFile() file: Express.Multer.File,
+    
+  ) {
+    if (!file) {
+      throw new BadRequestException('Vui lòng gửi file Excel');
+    }
+
+    return this.usersService.importStudentsToClass(classId, file);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
-  }
 }
