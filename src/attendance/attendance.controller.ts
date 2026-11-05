@@ -10,6 +10,8 @@ import {
 import { AttendanceService } from './attendance.service.js';
 import { CreateAttendanceDto } from './dto/create-attendance.dto.js';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto.js';
+import { DeviceAttendanceDto } from './dto/device-attendance.dto.js';
+import { Public } from '@nestjs/authentication';
 
 @Controller('attendance')
 export class AttendanceController {
@@ -18,6 +20,12 @@ export class AttendanceController {
   @Post('create')
   create(@Body() dto: CreateAttendanceDto) {
     return this.attendanceService.create(dto);
+  }
+
+  @Public()
+  @Post('device-check-in')
+  deviceCheckIn(@Body() dto: DeviceAttendanceDto) {
+    return this.attendanceService.deviceCheckIn(dto);
   }
 
   @Get()
