@@ -84,3 +84,11 @@ Fingerprints — Mẫu vân tay sinh viên
 - createdAt: Thời điểm đăng ký.
 - status: active (đang sử dụng), revoked (đã thu hồi).
 
+Fingerprint_registrations — Lượt đăng ký vân tay sinh viên
+
+- _id: Mã định danh lượt đăng ký, dùng làm registrationId gửi cho thiết bị.
+- studentId: Mã tài khoản sinh viên, tham chiếu _id trong Users.
+- deviceId: Mã thiết bị thực hiện đăng ký, tham chiếu _id trong Devices.
+- fingerPosition: Ngón tay đăng ký, ví dụ rightIndex (ngón trỏ phải).
+- status: pending (chờ ảnh), processing (đang xử lý), completed (hoàn tất), failed (thất bại), expired (hết hạn).
+- expiresAt: Thời điểm hết hạn nhận cho lượt đăng ký.
