@@ -83,3 +83,27 @@ Các lượt đã quá hạn sẽ được chuyển sang trạng thái `expired`
 Nếu chưa có lượt đăng ký đang chờ — HTTP 204, body trống.
 Mã máy, secret không hợp lệ hoặc máy không ở trạng thái `active` —
 HTTP 401.
+
+### Luồng hoàn tất đăng ký
+
+Sau khi nhận được `registrationId`, ESP32 đọc mẫu vân tay và gửi mẫu lên:
+
+```http
+POST /fingerprints/create
+X-Device-Code: FP001
+X-Device-Secret: <device-secret>
+```
+
+Request body:
+
+```json
+{
+  "registrationId": "<registration-id>",
+  "templateData": "<fingerprint-template>",
+  "templateFormat": "ISO-19794-2",
+  "algorithmVersion": "v1"
+}
+```
+
+Nếu hợp lệ, lượt đăng ký chuyển sang `completed` và server tạo mẫu vân tay
+trong collection `Fingerprints`.
