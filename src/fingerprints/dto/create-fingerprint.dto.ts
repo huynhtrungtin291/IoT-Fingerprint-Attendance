@@ -8,16 +8,13 @@ import {
 import { FingerprintStatus } from '../schema/fingerprints.schema.js';
 
 export class CreateFingerprintDto {
-  @IsMongoId()
-  studentId: string;
+  
 
   @IsString()
   @IsNotEmpty()
   registrationId: string;
 
-  @IsString()
-  @IsNotEmpty()
-  fingerPosition: string;
+ 
 
   @IsString()
   @IsNotEmpty()
