@@ -3,10 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
 } from '@nestjs/common';
+import { Public } from '@nestjs/authentication';
 import { FingerprintsService } from './fingerprints.service.js';
 import { CreateFingerprintDto } from './dto/create-fingerprint.dto.js';
 import { UpdateFingerprintDto } from './dto/update-fingerprint.dto.js';
@@ -15,9 +17,18 @@ import { UpdateFingerprintDto } from './dto/update-fingerprint.dto.js';
 export class FingerprintsController {
   constructor(private readonly fingerprintsService: FingerprintsService) {}
 
+  @Public()
   @Post('create')
-  create(@Body() dto: CreateFingerprintDto) {
-    return this.fingerprintsService.create(dto);
+  create(
+    @Body() dto: CreateFingerprintDto,
+    @Headers('x-device-code') deviceCode: string | undefined,
+    @Headers('x-device-secret') deviceSecret: string | undefined,
+  ) {
+    return this.fingerprintsService.create(
+      dto,
+      deviceCode ?? '',
+      deviceSecret ?? '',
+    );
   }
 
   @Get()
