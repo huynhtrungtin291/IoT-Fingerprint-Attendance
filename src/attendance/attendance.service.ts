@@ -171,10 +171,10 @@ export class AttendanceService {
       );
     }
 
+    const lateTime = new Date(session.startTime.getTime() + 15 * 60 * 1000);
+
     const status =
-      now > session.startTime
-        ? AttendanceStatus.LATE
-        : AttendanceStatus.PRESENT;
+      now > lateTime ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
 
     return this.attendanceModel.create({
       sessionId: session._id,
