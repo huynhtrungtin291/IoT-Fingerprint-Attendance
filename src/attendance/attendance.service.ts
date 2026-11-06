@@ -94,7 +94,7 @@ export class AttendanceService {
 
     const now = new Date();
 
-    if (Math.abs(now.getTime() - deviceTimestamp.getTime()) > 5 * 60 * 1000) {
+    if (Math.abs(now.getTime() - deviceTimestamp.getTime()) > 15 * 60 * 1000) {
       throw new BadRequestException('Thời gian trên máy không hợp lệ');
     }
 
