@@ -4,19 +4,28 @@ import {
   IsDateString,
   IsMongoId,
   IsNotEmpty,
+  ValidateNested,
   IsString,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class DeviceMatchedTemplateDto {
+  @IsString()
+  @IsNotEmpty()
+  template: string;
+
+  @IsDateString()
+  timestamp: string;
+}
 
 export class DeviceCheckInDto {
   @IsMongoId()
   sessionId: string;
 
-  @IsDateString()
-  timestamp: string;
 
   @IsArray()
   @ArrayNotEmpty()
-  @IsString({ each: true })
-  @IsNotEmpty({ each: true })
-  templates: string[];
+  @ValidateNested({ each: true })
+  @Type(() => DeviceMatchedTemplateDto)
+  templates: DeviceMatchedTemplateDto[];
 }

@@ -113,27 +113,33 @@ Body:
 
 #### POST /attendance/device/check-in
 
-ESP32 gọi API này sau khi đã so khớp vân tay. `templates` là danh sách
-`templateData` mà ESP32 đã nhận diện thành công; server sẽ tìm sinh viên
-tương ứng và ghi nhận điểm danh cho từng sinh viên.
+ESP32 gọi API này sau khi đã so khớp vân tay. `templates` là danh sách các
+template đã được server gửi trước đó và ESP32 đã nhận diện thành công. Mỗi
+phần tử có thời điểm riêng; server sẽ tìm sinh viên tương ứng và ghi nhận điểm
+danh cho từng sinh viên.
 
 Body:
 
 ```json
 {
   "sessionId": "<session-id>",
-  "timestamp": "2026-11-05T01:05:00.000Z",
   "templates": [
-    "<matched-template-1>",
-    "<matched-template-2>"
+    {
+      "template": "<matched-template-1>",
+      "timestamp": "2026-11-05T01:05:00.000Z"
+    },
+    {
+      "template": "<matched-template-2>",
+      "timestamp": "2026-11-05T01:06:30.000Z"
+    }
   ]
 }
 ```
 
-`timestamp` là thời điểm ESP32 ghi nhận điểm danh. Server chỉ chấp nhận thời
-điểm nằm trong khoảng `attendanceOpenTime`–`attendanceCloseTime`; nếu hai mốc
-này không có thì dùng `startTime`–`endTime`. Sinh viên phải thuộc session và
-template phải là fingerprint đang `active`.
+`template` phải tồn tại trong dữ liệu fingerprint `active` do server lưu trước
+đó; ESP32 không được gửi template mới. Server kiểm tra từng `timestamp` trong
+khoảng `attendanceOpenTime`–`attendanceCloseTime`; nếu hai mốc này không có thì
+dùng `startTime`–`endTime`. Sinh viên phải thuộc session.
 
 Đầu ra — HTTP 201:
 
@@ -146,10 +152,11 @@ template phải là fingerprint đang `active`.
 }
 ```
 
-Sinh viên đã điểm danh trước đó sẽ không tạo bản ghi trùng. Trạng thái tự
-động là `present`, hoặc `late` nếu thời điểm điểm danh sau `startTime` 15 phút.
-`method` được lưu là `fingerprint`; `checkInTime`, `receivedAt` và `lastSeenAt`
-được lấy theo `timestamp` từ ESP32.
+Sinh viên đã điểm danh trước đó sẽ không tạo bản ghi trùng. Mỗi sinh viên
+dùng timestamp riêng cho `checkInTime` và `receivedAt`. Trạng thái tự động là
+`present`, hoặc `late` nếu timestamp của sinh viên đó sau `startTime` 15 phút.
+`method` được lưu là `fingerprint`; `lastSeenAt` của máy là timestamp mới nhất
+trong request.
 
 Không xác thực được máy — HTTP 401. Session không tồn tại — HTTP 404. Thiết bị
 không cùng phòng với session hoặc thời gian ngoài khoảng điểm danh — HTTP 401

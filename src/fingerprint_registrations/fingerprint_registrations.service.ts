@@ -11,7 +11,7 @@ import { Device, DeviceStatus } from '../devices/schema/devices.schema.js';
 
 @Injectable()
 export class FingerprintRegistrationsService {
-  private readonly registrationLifetimeMs = 5 * 60 * 1000;
+  private readonly registrationLifetimeMs = 35 * 60 * 1000;
 
   constructor(
     @InjectModel('FingerprintRegistration')

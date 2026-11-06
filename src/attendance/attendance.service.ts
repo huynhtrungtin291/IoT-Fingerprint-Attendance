@@ -225,10 +225,17 @@ export class AttendanceService {
       );
     }
 
-    const checkInTime = new Date(dto.timestamp);
     const openTime = session.attendanceOpenTime ?? session.startTime;
     const closeTime = session.attendanceCloseTime ?? session.endTime;
-    if (checkInTime < openTime || checkInTime > closeTime) {
+    const checkIns = dto.templates.map((item) => ({
+      template: item.template,
+      checkInTime: new Date(item.timestamp),
+    }));
+    if (
+      checkIns.some(
+        ({ checkInTime }) => checkInTime < openTime || checkInTime > closeTime,
+      )
+    ) {
       throw new BadRequestException(
         'Thời gian điểm danh không nằm trong khoảng cho phép',
       );
@@ -244,18 +251,25 @@ export class AttendanceService {
     const fingerprints = await this.fingerprintModel
       .find({
         studentId: { $in: studentIds },
-        templateData: { $in: dto.templates },
+        templateData: { $in: checkIns.map(({ template }) => template) },
         status: FingerprintStatus.ACTIVE,
       })
       .select('studentId templateData')
       .lean()
       .exec();
 
-    const matchedStudentIds = [
-      ...new Set(
-        fingerprints.map((fingerprint) => fingerprint.studentId.toString()),
-      ),
-    ];
+    const checkInByTemplate = new Map(
+      checkIns.map(({ template, checkInTime }) => [template, checkInTime]),
+    );
+    const studentCheckIns = new Map<string, Date>();
+    for (const fingerprint of fingerprints) {
+      const studentId = fingerprint.studentId.toString();
+      const checkInTime = checkInByTemplate.get(fingerprint.templateData);
+      if (checkInTime && !studentCheckIns.has(studentId)) {
+        studentCheckIns.set(studentId, checkInTime);
+      }
+    }
+    const matchedStudentIds = [...studentCheckIns.keys()];
     const existingAttendances = await this.attendanceModel
       .find({
         sessionId: session._id,
@@ -270,36 +284,48 @@ export class AttendanceService {
     const newStudentIds = matchedStudentIds.filter(
       (studentId) => !existingStudentIds.has(studentId),
     );
-    const status =
-      checkInTime.getTime() > session.startTime.getTime() + 15 * 60 * 1000
-        ? AttendanceStatus.LATE
-        : AttendanceStatus.PRESENT;
-
     if (newStudentIds.length > 0) {
       await this.attendanceModel.insertMany(
-        newStudentIds.map((studentId) => ({
-          sessionId: session._id,
-          studentId: new Types.ObjectId(studentId),
-          status,
-          checkInTime,
-          deviceId: device.deviceCode,
-          method: AttendanceMethod.FINGERPRINT,
-          receivedAt: checkInTime,
-        })),
+        newStudentIds.map((studentId) => {
+          const checkInTime = studentCheckIns.get(studentId);
+          if (!checkInTime) {
+            throw new BadRequestException(
+              'Không xác định được thời gian điểm danh',
+            );
+          }
+          return {
+            sessionId: session._id,
+            studentId: new Types.ObjectId(studentId),
+            status:
+              checkInTime.getTime() >
+              session.startTime.getTime() + 15 * 60 * 1000
+                ? AttendanceStatus.LATE
+                : AttendanceStatus.PRESENT,
+            checkInTime,
+            deviceId: device.deviceCode,
+            method: AttendanceMethod.FINGERPRINT,
+            receivedAt: checkInTime,
+          };
+        }),
         { ordered: false },
       );
     }
 
+    const latestCheckInTime = checkIns.reduce(
+      (latest, { checkInTime }) =>
+        checkInTime > latest ? checkInTime : latest,
+      checkIns[0].checkInTime,
+    );
     await this.deviceModel.updateOne(
       { _id: device._id },
-      { $set: { lastSeenAt: checkInTime } },
+      { $set: { lastSeenAt: latestCheckInTime } },
     );
 
     return {
       sessionId: session._id,
       checkedInStudentIds: newStudentIds,
       alreadyCheckedInStudentIds: [...existingStudentIds],
-      unmatchedTemplateCount: dto.templates.length - fingerprints.length,
+      unmatchedTemplateCount: dto.templates.length - studentCheckIns.size,
     };
   }
 
