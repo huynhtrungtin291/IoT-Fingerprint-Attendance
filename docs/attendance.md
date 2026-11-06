@@ -35,39 +35,125 @@ Giá trị hợp lệ:
 
 Một sinh viên chỉ có một kết quả điểm danh trong cùng một buổi học.
 
-### POST /attendance/device-check-in
+### API dành cho ESP32
 
-API dành cho máy vân tay. API này không dùng header `Authorization`; máy gửi
-thông tin xác thực và mẫu vân tay trong JSON body:
+Các API dưới đây không dùng header `Authorization`. ESP32 phải gửi:
+
+```http
+X-Device-Code: FP001
+X-Device-Secret: <device-secret>
+```
+
+Header không phân biệt chữ hoa/chữ thường. `X-Device-Code` phải là mã máy đã
+đăng ký; `X-Device-Secret` là secret ban đầu của máy.
+
+#### POST /attendance/device/sessions
+
+Lấy các session có `startTime` nằm trong ngày của `timestamp`.
+
+Body:
 
 ```json
 {
-  "deviceCode": "FP001",
-  "authSecret": "<device-secret>",
-  "templateData": "<fingerprint-template>",
   "timestamp": "2026-11-05T01:05:00.000Z"
 }
 ```
 
-`deviceCode`, `authSecret`, `templateData` là bắt buộc. `timestamp` phải là
-chuỗi ngày giờ ISO 8601 và không được lệch quá 5 phút so với giờ server.
-
-Backend xác thực máy, chỉ xét các mẫu vân tay đang ở trạng thái `active`, sau
-đó so khớp `templateData` nhận được với các mẫu đã lưu để xác định sinh viên.
-Server tiếp tục lấy phòng từ máy, tìm buổi học đang mở tại phòng đó và kiểm
-tra sinh viên đã đăng ký lớp học phần.
-
-`lastSeenAt` của máy được cập nhật theo giờ server nhận request. Nếu điểm danh
-thành công, server tự tạo bản ghi với `method` là `fingerprint` và trạng thái
-`present` hoặc `late`.
+`timestamp` phải là chuỗi ngày giờ ISO 8601.
 
 Đầu ra — HTTP 201:
 
-Server trả về bản ghi điểm danh vừa tạo.
+```json
+{
+  "date": "2026-11-05",
+  "sessions": [
+    {
+      "_id": "<session-id>",
+      "startTime": "2026-11-05T01:00:00.000Z",
+      "endTime": "2026-11-05T03:00:00.000Z",
+      "attendanceOpenTime": "2026-11-05T00:45:00.000Z",
+      "attendanceCloseTime": "2026-11-05T03:15:00.000Z"
+    }
+  ]
+}
+```
 
-Không xác thực được máy — HTTP 401. Không tìm thấy mẫu vân tay khớp — HTTP 404.
-Không có buổi học đang mở hoặc sinh viên chưa đăng ký lớp — HTTP 400. Sinh viên
-đã điểm danh trong buổi học — HTTP 409.
+`attendanceOpenTime` và `attendanceCloseTime` có thể là `null`. `lastSeenAt`
+của máy được cập nhật bằng `timestamp`.
+
+#### POST /attendance/device/session-templates
+
+Lấy các fingerprint template active của tất cả sinh viên đã đăng ký trong
+session. Session phải thuộc cùng phòng với thiết bị.
+
+Body:
+
+```json
+{
+  "sessionId": "<session-id>"
+}
+```
+
+Đầu ra — HTTP 201:
+
+```json
+{
+  "sessionId": "<session-id>",
+  "templates": [
+    {
+      "studentId": "<student-id>",
+      "templateData": "<fingerprint-template>",
+      "fingerPosition": "right-index",
+      "templateFormat": "ISO",
+      "algorithmVersion": "1.0"
+    }
+  ]
+}
+```
+
+#### POST /attendance/device/check-in
+
+ESP32 gọi API này sau khi đã so khớp vân tay. `templates` là danh sách
+`templateData` mà ESP32 đã nhận diện thành công; server sẽ tìm sinh viên
+tương ứng và ghi nhận điểm danh cho từng sinh viên.
+
+Body:
+
+```json
+{
+  "sessionId": "<session-id>",
+  "timestamp": "2026-11-05T01:05:00.000Z",
+  "templates": [
+    "<matched-template-1>",
+    "<matched-template-2>"
+  ]
+}
+```
+
+`timestamp` là thời điểm ESP32 ghi nhận điểm danh. Server chỉ chấp nhận thời
+điểm nằm trong khoảng `attendanceOpenTime`–`attendanceCloseTime`; nếu hai mốc
+này không có thì dùng `startTime`–`endTime`. Sinh viên phải thuộc session và
+template phải là fingerprint đang `active`.
+
+Đầu ra — HTTP 201:
+
+```json
+{
+  "sessionId": "<session-id>",
+  "checkedInStudentIds": ["<student-id>"],
+  "alreadyCheckedInStudentIds": [],
+  "unmatchedTemplateCount": 0
+}
+```
+
+Sinh viên đã điểm danh trước đó sẽ không tạo bản ghi trùng. Trạng thái tự
+động là `present`, hoặc `late` nếu thời điểm điểm danh sau `startTime` 15 phút.
+`method` được lưu là `fingerprint`; `checkInTime`, `receivedAt` và `lastSeenAt`
+được lấy theo `timestamp` từ ESP32.
+
+Không xác thực được máy — HTTP 401. Session không tồn tại — HTTP 404. Thiết bị
+không cùng phòng với session hoặc thời gian ngoài khoảng điểm danh — HTTP 401
+hoặc HTTP 400 tương ứng.
 
 ### GET /attendance
 

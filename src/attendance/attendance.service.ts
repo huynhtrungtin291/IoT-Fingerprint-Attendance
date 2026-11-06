@@ -14,12 +14,13 @@ import {
   Fingerprint,
   FingerprintStatus,
 } from '../fingerprints/schema/fingerprints.schema.js';
-import { SessionStatus } from '../sessions/schema/sessions.schema.js';
 import { UserRole } from '../common/enum/user.enum.js';
 import { Session } from '../sessions/schema/sessions.schema.js';
 import { User } from '../users/schema/user.schema.js';
 import { CreateAttendanceDto } from './dto/create-attendance.dto.js';
 import { DeviceAttendanceDto } from './dto/device-attendance.dto.js';
+import { DeviceSessionTemplatesDto } from './dto/device-session-templates.dto.js';
+import { DeviceCheckInDto } from './dto/device-check-in.dto.js';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto.js';
 import {
   Attendance,
@@ -45,7 +46,6 @@ export class AttendanceService {
     private readonly passwordHasher: PasswordHasher,
   ) {}
 
-
   async create(dto: CreateAttendanceDto) {
     await this.ensureReferences(dto.sessionId, dto.studentId);
     const exists = await this.attendanceModel.exists({
@@ -69,122 +69,238 @@ export class AttendanceService {
     });
   }
 
-  async deviceCheckIn(dto: DeviceAttendanceDto) {
+  async findSessionsForDevice(
+    dto: DeviceAttendanceDto,
+    deviceCode: string,
+    deviceSecret: string,
+  ) {
     const device = await this.deviceModel
-      .findOne({ deviceCode: dto.deviceCode.trim() })
+      .findOne({ deviceCode: deviceCode.trim() })
       .select('+authSecretHash')
+      .lean()
       .exec();
 
     if (
       !device ||
-      !(await this.passwordHasher.verify(dto.authSecret, device.authSecretHash))
+      device.status !== DeviceStatus.ACTIVE ||
+      !(await this.passwordHasher.verify(deviceSecret, device.authSecretHash))
     ) {
-      throw new UnauthorizedException('Thông tin máy điểm danh không hợp lệ');
+      throw new UnauthorizedException(
+        'Thông tin xác thực của máy không hợp lệ',
+      );
     }
 
-    if (device.status !== DeviceStatus.ACTIVE) {
-      throw new UnauthorizedException('Máy điểm danh đang bị vô hiệu hóa');
+    const timestamp = new Date(dto.timestamp);
+    const dayStart = new Date(timestamp);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+    await this.deviceModel.updateOne(
+      { _id: device._id },
+      { $set: { lastSeenAt: timestamp } },
+    );
+
+    const sessions = await this.sessionModel
+      .find({
+        startTime: { $gte: dayStart, $lt: dayEnd },
+      })
+      .select('startTime endTime attendanceOpenTime attendanceCloseTime')
+      .sort({ startTime: 1 })
+      .lean()
+      .exec();
+
+    return {
+      date: dayStart.toISOString().slice(0, 10),
+      sessions: sessions.map((session) => ({
+        _id: session._id,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        attendanceOpenTime: session.attendanceOpenTime ?? null,
+        attendanceCloseTime: session.attendanceCloseTime ?? null,
+      })),
+    };
+  }
+
+  async findSessionTemplatesForDevice(
+    dto: DeviceSessionTemplatesDto,
+    deviceCode: string,
+    deviceSecret: string,
+  ) {
+    const device = await this.deviceModel
+      .findOne({ deviceCode: deviceCode.trim() })
+      .select('+authSecretHash')
+      .lean()
+      .exec();
+
+    if (
+      !device ||
+      device.status !== DeviceStatus.ACTIVE ||
+      !(await this.passwordHasher.verify(deviceSecret, device.authSecretHash))
+    ) {
+      throw new UnauthorizedException(
+        'Thông tin xác thực của máy không hợp lệ',
+      );
     }
 
-    const deviceTimestamp = new Date(dto.timestamp);
-
-    if (Number.isNaN(deviceTimestamp.getTime())) {
-      throw new BadRequestException('timestamp không hợp lệ');
+    const session = await this.sessionModel
+      .findById(dto.sessionId)
+      .lean()
+      .exec();
+    if (!session) {
+      throw new NotFoundException('Buổi học không tồn tại');
+    }
+    if (session.roomId.toString() !== device.roomId.toString()) {
+      throw new UnauthorizedException(
+        'Máy điểm danh không thuộc phòng của buổi học',
+      );
     }
 
-    const now = new Date();
+    const enrollments = await this.enrollmentModel
+      .find({ sectionId: session.sectionId })
+      .select('studentId')
+      .lean()
+      .exec();
+    const studentIds = enrollments.map((enrollment) => enrollment.studentId);
 
-    if (Math.abs(now.getTime() - deviceTimestamp.getTime()) > 15 * 60 * 1000) {
-      throw new BadRequestException('Thời gian trên máy không hợp lệ');
+    const fingerprints = await this.fingerprintModel
+      .find({
+        studentId: { $in: studentIds },
+        status: FingerprintStatus.ACTIVE,
+      })
+      .select(
+        'studentId templateData fingerPosition templateFormat algorithmVersion',
+      )
+      .lean()
+      .exec();
+
+    await this.deviceModel.updateOne(
+      { _id: device._id },
+      { $set: { lastSeenAt: new Date() } },
+    );
+
+    return {
+      sessionId: session._id,
+      templates: fingerprints.map((fingerprint) => ({
+        studentId: fingerprint.studentId,
+        templateData: fingerprint.templateData,
+        fingerPosition: fingerprint.fingerPosition,
+        templateFormat: fingerprint.templateFormat,
+        algorithmVersion: fingerprint.algorithmVersion,
+      })),
+    };
+  }
+
+  async checkInFromDevice(
+    dto: DeviceCheckInDto,
+    deviceCode: string,
+    deviceSecret: string,
+  ) {
+    const device = await this.deviceModel
+      .findOne({ deviceCode: deviceCode.trim() })
+      .select('+authSecretHash')
+      .lean()
+      .exec();
+
+    if (
+      !device ||
+      device.status !== DeviceStatus.ACTIVE ||
+      !(await this.passwordHasher.verify(deviceSecret, device.authSecretHash))
+    ) {
+      throw new UnauthorizedException(
+        'Thông tin xác thực của máy không hợp lệ',
+      );
+    }
+
+    const session = await this.sessionModel
+      .findById(dto.sessionId)
+      .lean()
+      .exec();
+    if (!session) {
+      throw new NotFoundException('Buổi học không tồn tại');
+    }
+    if (session.roomId.toString() !== device.roomId.toString()) {
+      throw new UnauthorizedException(
+        'Máy điểm danh không thuộc phòng của buổi học',
+      );
+    }
+
+    const checkInTime = new Date(dto.timestamp);
+    const openTime = session.attendanceOpenTime ?? session.startTime;
+    const closeTime = session.attendanceCloseTime ?? session.endTime;
+    if (checkInTime < openTime || checkInTime > closeTime) {
+      throw new BadRequestException(
+        'Thời gian điểm danh không nằm trong khoảng cho phép',
+      );
+    }
+
+    const enrollments = await this.enrollmentModel
+      .find({ sectionId: session.sectionId })
+      .select('studentId')
+      .lean()
+      .exec();
+    const studentIds = enrollments.map((enrollment) => enrollment.studentId);
+
+    const fingerprints = await this.fingerprintModel
+      .find({
+        studentId: { $in: studentIds },
+        templateData: { $in: dto.templates },
+        status: FingerprintStatus.ACTIVE,
+      })
+      .select('studentId templateData')
+      .lean()
+      .exec();
+
+    const matchedStudentIds = [
+      ...new Set(
+        fingerprints.map((fingerprint) => fingerprint.studentId.toString()),
+      ),
+    ];
+    const existingAttendances = await this.attendanceModel
+      .find({
+        sessionId: session._id,
+        studentId: { $in: matchedStudentIds },
+      })
+      .select('studentId')
+      .lean()
+      .exec();
+    const existingStudentIds = new Set(
+      existingAttendances.map((attendance) => attendance.studentId.toString()),
+    );
+    const newStudentIds = matchedStudentIds.filter(
+      (studentId) => !existingStudentIds.has(studentId),
+    );
+    const status =
+      checkInTime.getTime() > session.startTime.getTime() + 15 * 60 * 1000
+        ? AttendanceStatus.LATE
+        : AttendanceStatus.PRESENT;
+
+    if (newStudentIds.length > 0) {
+      await this.attendanceModel.insertMany(
+        newStudentIds.map((studentId) => ({
+          sessionId: session._id,
+          studentId: new Types.ObjectId(studentId),
+          status,
+          checkInTime,
+          deviceId: device.deviceCode,
+          method: AttendanceMethod.FINGERPRINT,
+          receivedAt: checkInTime,
+        })),
+        { ordered: false },
+      );
     }
 
     await this.deviceModel.updateOne(
       { _id: device._id },
-      { $set: { lastSeenAt: now } },
+      { $set: { lastSeenAt: checkInTime } },
     );
 
-    const allFingerprints = await this.fingerprintModel
-      .find({ status: FingerprintStatus.ACTIVE })
-      .select('_id studentId templateData')
-      .lean()
-      .exec();
-
-    let matchedFingerprint: (typeof allFingerprints)[number] | null = null;
-
-    for (const fingerprint of allFingerprints) {
-      const isMatch = await this.passwordHasher.verify(
-        dto.templateData,
-        fingerprint.templateData,
-      );
-
-      if (isMatch) {
-        matchedFingerprint = fingerprint;
-        break;
-      }
-    }
-
-    if (!matchedFingerprint) {
-      throw new NotFoundException('Không tìm thấy mẫu khớp');
-    }
-
-    const studentId = matchedFingerprint.studentId;
-
-    const sessions = await this.sessionModel
-      .find({
-        roomId: device.roomId,
-        status: SessionStatus.OPEN,
-      })
-      .exec();
-
-    const session = sessions.find((candidate) => {
-      const openTime = candidate.attendanceOpenTime ?? candidate.startTime;
-      const closeTime = candidate.attendanceCloseTime ?? candidate.endTime;
-
-      return now >= openTime && now <= closeTime;
-    });
-
-    if (!session) {
-      throw new BadRequestException(
-        'Hiện không có buổi học mở điểm danh tại phòng này',
-      );
-    }
-
-    const enrolled = await this.enrollmentModel.exists({
-      sectionId: session.sectionId,
-      studentId,
-    });
-
-    if (!enrolled) {
-      throw new BadRequestException(
-        'Sinh viên không thuộc lớp học phần của buổi này',
-      );
-    }
-
-    const exists = await this.attendanceModel.exists({
+    return {
       sessionId: session._id,
-      studentId,
-    });
-
-    if (exists) {
-      throw new ConflictException(
-        'Sinh viên đã có kết quả điểm danh trong buổi này',
-      );
-    }
-
-    const lateTime = new Date(session.startTime.getTime() + 15 * 60 * 1000);
-
-    const status =
-      now > lateTime ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
-
-    return this.attendanceModel.create({
-      sessionId: session._id,
-      studentId,
-      status,
-      checkInTime: now,
-      deviceId: device.deviceCode,
-      method: AttendanceMethod.FINGERPRINT,
-      receivedAt: now,
-    });
+      checkedInStudentIds: newStudentIds,
+      alreadyCheckedInStudentIds: [...existingStudentIds],
+      unmatchedTemplateCount: dto.templates.length - fingerprints.length,
+    };
   }
 
   async findAll() {

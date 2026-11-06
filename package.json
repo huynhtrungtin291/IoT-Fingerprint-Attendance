@@ -36,6 +36,7 @@
     "config": "^5.0.1",
     "cookie-parser": "^1.4.7",
     "mongoose": "^9.11.4",
+    "nodeafis": "github:martines205/nodeafis",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "xlsx": "^0.18.5"

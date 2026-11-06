@@ -131,7 +131,6 @@ export class FingerprintsService {
         }
 
         // Giữ nguyên theo giả định xử lý mẫu hiện tại của bạn.
-        const templateData = await this.passwordHasher.hash(dto.templateData);
 
         const [fingerprint] = await this.fingerprintModel.create(
           [
@@ -139,7 +138,7 @@ export class FingerprintsService {
               registrationId: registration._id,
               studentId: registration.studentId,
               fingerPosition,
-              templateData,
+              templateData: dto.templateData,
               templateFormat: dto.templateFormat.trim(),
               algorithmVersion: dto.algorithmVersion.trim(),
               status: FingerprintStatus.ACTIVE,
