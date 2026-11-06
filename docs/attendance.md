@@ -135,11 +135,7 @@ Body:
   ]
 }
 ```
-
-`template` phải tồn tại trong dữ liệu fingerprint `active` do server lưu trước
-đó; ESP32 không được gửi template mới. Server kiểm tra từng `timestamp` trong
-khoảng `attendanceOpenTime`–`attendanceCloseTime`; nếu hai mốc này không có thì
-dùng `startTime`–`endTime`. Sinh viên phải thuộc session.
+template: phải là đúng cái mẫu base64 mà server gửi xuống
 
 Đầu ra — HTTP 201:
 
