@@ -33,13 +33,19 @@ export class FingerprintsService {
     private readonly passwordHasher: PasswordHasher,
   ) {}
 
-  async create( dto: CreateFingerprintDto, deviceCode: string,  deviceSecret: string) {
+  async create(
+    dto: CreateFingerprintDto,
+    deviceCode: string,
+    deviceSecret: string,
+  ) {
     const device = await this.deviceModel
       .findOne({ deviceCode: deviceCode.trim() })
       .select('+authSecretHash')
       .exec();
 
-    if ( !device || device.status !== DeviceStatus.ACTIVE ||
+    if (
+      !device ||
+      device.status !== DeviceStatus.ACTIVE ||
       !(await this.passwordHasher.verify(deviceSecret, device.authSecretHash))
     ) {
       throw new UnauthorizedException(
@@ -49,10 +55,10 @@ export class FingerprintsService {
 
     const session = await this.fingerprintModel.db.startSession();
 
-    try { 
+    try {
       return await session.withTransaction(async () => {
         const registration = await this.registrationModel
-          .findOne({_id: dto.registrationId, deviceId: device._id })
+          .findOne({ _id: dto.registrationId, deviceId: device._id })
           .session(session)
           .exec();
 
@@ -167,22 +173,45 @@ export class FingerprintsService {
         };
       });
     } catch (error) {
-
-      if ( typeof error === 'object' && error !== null && 'code' in error && error.code === 11000 ) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 11000
+      ) {
         throw new ConflictException('Sinh viên đã đăng ký ngón tay này');
       }
       throw error;
-
-    } 
-    finally {
+    } finally {
       await session.endSession();
     }
   }
 
-  findAll() {
+  getAllFingerprint() {
     return this.fingerprintModel
       .find()
       .populate('studentId', 'fullName userName studentCode')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  async getAllFingerprintWithClass(classId: string) {
+    if (!Types.ObjectId.isValid(classId)) {
+      throw new BadRequestException('Mã lớp không hợp lệ');
+    }
+
+    const students = await this.userModel
+      .find({
+        classId: new Types.ObjectId(classId),
+        role: UserRole.STUDENT,
+      })
+      .select('_id')
+      .lean()
+      .exec();
+
+    return this.fingerprintModel
+      .find({ studentId: { $in: students.map((student) => student._id) } })
+      .populate('studentId', 'fullName userName studentCode classId')
       .sort({ createdAt: -1 })
       .exec();
   }

@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
 import { AttendanceService } from './attendance.service.js';
 import { CreateAttendanceDto } from './dto/create-attendance.dto.js';
@@ -15,6 +16,7 @@ import { DeviceAttendanceDto } from './dto/device-attendance.dto.js';
 import { DeviceSessionTemplatesDto } from './dto/device-session-templates.dto.js';
 import { DeviceCheckInDto } from './dto/device-check-in.dto.js';
 import { Public } from '@nestjs/authentication';
+import type { AuthenticatedRequest } from '../common/interfaces/authenticated.request.interface.js';
 
 @Controller('attendance')
 export class AttendanceController {
@@ -70,6 +72,11 @@ export class AttendanceController {
   @Get()
   findAll() {
     return this.attendanceService.findAll();
+  }
+
+  @Get('teacher')
+  getAttendance(@Req() req: AuthenticatedRequest) {
+    return this.attendanceService.getAttendanceByTeacher(req.user._id);
   }
 
   @Get(':id')

@@ -20,9 +20,9 @@ export class RoomsController {
     return this.roomsService.create(dto);
   }
 
-  @Get()
-  findAll() {
-    return this.roomsService.findAll();
+  @Get('all')
+  getAllRoom() {
+    return this.roomsService.getAllRoom();
   }
 
   @Get(':id')

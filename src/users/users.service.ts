@@ -53,7 +53,10 @@ export class UsersService {
     };
   }
 
-  async updateRefreshToken( userId: string, refreshToken: string | null): Promise<void> {
+  async updateRefreshToken(
+    userId: string,
+    refreshToken: string | null,
+  ): Promise<void> {
     const hashedRefreshToken = refreshToken
       ? await this.hashPassword_RefreshToken(refreshToken)
       : null;
@@ -79,9 +82,13 @@ export class UsersService {
       throw new BadRequestException('Mật khẩu hiện tại không đúng');
     }
 
-    const newPasswordHash = await this.hashPassword_RefreshToken( dto.newPassword );
+    const newPasswordHash = await this.hashPassword_RefreshToken(
+      dto.newPassword,
+    );
 
-    await this.userModel.findByIdAndUpdate(userId, {$set: { passwordHash: newPasswordHash }});
+    await this.userModel.findByIdAndUpdate(userId, {
+      $set: { passwordHash: newPasswordHash },
+    });
 
     return {
       statusCode: 200,
@@ -89,9 +96,10 @@ export class UsersService {
     };
   }
 
-  async importStudentsToClass( classId: string, file: Express.Multer.File ): 
-    Promise<{ statusCode: number; message: string; data: unknown[] }> {
-
+  async importStudentsToClass(
+    classId: string,
+    file: Express.Multer.File,
+  ): Promise<{ statusCode: number; message: string; data: unknown[] }> {
     if (!Types.ObjectId.isValid(classId)) {
       throw new BadRequestException('Mã lớp không hợp lệ');
     }
@@ -107,7 +115,9 @@ export class UsersService {
       throw new BadRequestException('File Excel không có sheet dữ liệu');
     }
 
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: ''});
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, {
+      defval: '',
+    });
 
     if (rows.length === 0) {
       throw new BadRequestException('File Excel không có dữ liệu');
@@ -183,6 +193,10 @@ export class UsersService {
     };
   }
 
+  async getAllUser(role: UserRole) {
+    return await this.userModel.find({role:role}).exec();
+  }
+
   // Helpers
 
   async isUserExist(userName?: string, userId?: string): Promise<boolean> {
@@ -236,6 +250,4 @@ export class UsersService {
   async findUserByUserName(userName: string) {
     return this.userModel.findOne({ userName }).exec();
   }
-
-
 }

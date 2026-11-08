@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UserRole } from '../common/enum/user.enum.js';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto.js';
+import { CreateEnrollmentsByClassDto } from './dto/create-enrollments-by-class.dto.js';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto.js';
 import { Enrollment } from './schema/enrollments.schema.js';
 import { Section } from '../sections/schema/sections.schema.js';
@@ -42,6 +43,73 @@ export class EnrollmentsService {
     });
   }
 
+  async createByClass(dto: CreateEnrollmentsByClassDto, addId: string) {
+    const { sectionId, classId } = dto;
+    const addedBy = new Types.ObjectId(addId);
+
+    if (
+      !Types.ObjectId.isValid(sectionId) ||
+      !Types.ObjectId.isValid(classId) ||
+      !Types.ObjectId.isValid(addedBy)
+    ) {
+      throw new BadRequestException('Mã tham chiếu không hợp lệ');
+    }
+
+    if (!(await this.sectionModel.exists({ _id: sectionId }))) {
+      throw new NotFoundException('Lớp học phần không tồn tại');
+    }
+
+    if (!(await this.userModel.exists({ _id: addedBy }))) {
+      throw new NotFoundException('Người thêm sinh viên không tồn tại');
+    }
+
+    const students = await this.userModel
+      .find({
+        classId: new Types.ObjectId(classId),
+        role: UserRole.STUDENT,
+      })
+      .select('_id')
+      .lean()
+      .exec();
+
+    if (students.length === 0) {
+      throw new NotFoundException('Lớp không có sinh viên');
+    }
+
+    const studentIds = students.map((student) => student._id);
+    const existingEnrollments = await this.enrollmentModel
+      .find({
+        sectionId: new Types.ObjectId(sectionId),
+        studentId: { $in: studentIds },
+      })
+      .select('studentId')
+      .lean()
+      .exec();
+
+    const existingStudentIds = new Set(
+      existingEnrollments.map((enrollment) => enrollment.studentId.toString()),
+    );
+    const newEnrollments = students
+      .filter((student) => !existingStudentIds.has(student._id.toString()))
+      .map((student) => ({
+        sectionId: new Types.ObjectId(sectionId),
+        studentId: student._id,
+        addedBy: new Types.ObjectId(addedBy),
+        addedAt: new Date(),
+      }));
+
+    if (newEnrollments.length > 0) {
+      await this.enrollmentModel.insertMany(newEnrollments);
+    }
+
+    return {
+      message: 'Thêm sinh viên vào lớp học phần thành công',
+      totalStudents: students.length,
+      addedCount: newEnrollments.length,
+      skippedCount: existingEnrollments.length,
+    };
+  }
+
   async findAll() {
     return this.enrollmentModel
       .find()
@@ -52,18 +120,22 @@ export class EnrollmentsService {
       .exec();
   }
 
-  async findOne(id: string) {
+  async getAllEnrollmentWithUserId(id: string) {
     await this.ensureValidId(id);
-    const enrollment = await this.enrollmentModel
-      .findById(id)
-      .populate('sectionId', 'sectionCode courseId teacherId')
+
+    const enrollments = await this.enrollmentModel
+      .find()
+      .populate({
+        path: 'sectionId',
+        match: { teacherId: new Types.ObjectId(id) },
+        select: 'sectionCode courseId teacherId',
+      })
       .populate('studentId', 'fullName userName studentCode')
       .populate('addedBy', 'fullName userName role')
+      .sort({ addedAt: -1 })
       .exec();
-    if (!enrollment) {
-      throw new NotFoundException('Bản ghi đăng ký không tồn tại');
-    }
-    return enrollment;
+
+    return enrollments.filter((enrollment) => enrollment.sectionId !== null);
   }
 
   async update(id: string, dto: UpdateEnrollmentDto) {

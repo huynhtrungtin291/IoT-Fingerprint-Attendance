@@ -4,7 +4,9 @@ import {
   Get,
   Headers,
   HttpCode,
+  Param,
   HttpStatus,
+  Delete,
   Post,
   Res,
   UseGuards,
@@ -21,11 +23,30 @@ import { RolesGuard } from '../common/guards/roles.guard.js';
 export class FingerprintRegistrationsController {
   constructor(private readonly fingerprintRegistrationsService: FingerprintRegistrationsService) {}
 
-  @Post('fingerprint-registrations')
+  @Post('fingerprint-registrations/create')
   @Roles(UserRole.TEACHER)
   @UseGuards(RolesGuard)
   create(@Body() dto: CreateFingerprintRegistrationDto) {
     return this.fingerprintRegistrationsService.create(dto);
+  }
+
+  @Get('fingerprint-registrations/all')
+  getAllRegistrations() {
+    return this.fingerprintRegistrationsService.getAllRegistrations();
+  }
+
+  @Get('fingerprint-registrations/all/class/:classId')
+  getAllRegistrationsWithClass(@Param('classId') classId: string) {
+    return this.fingerprintRegistrationsService.getAllRegistrationsWithClass(
+      classId,
+    );
+  }
+
+  @Delete('fingerprint-registrations/:id')
+  @Roles(UserRole.TEACHER)
+  @UseGuards(RolesGuard)
+  remove(@Param('id') id: string) {
+    return this.fingerprintRegistrationsService.remove(id);
   }
 
   @Public()

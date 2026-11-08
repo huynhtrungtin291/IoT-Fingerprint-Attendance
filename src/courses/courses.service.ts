@@ -29,4 +29,7 @@ export class CoursesService {
     return this.courseModel.create({ courseCode, courseName });
   }
 
+  async getAllCourses() {
+    return this.courseModel.find({}, '_id courseCode courseName').exec();
+  }
 }

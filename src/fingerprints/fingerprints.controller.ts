@@ -31,9 +31,14 @@ export class FingerprintsController {
     );
   }
 
-  @Get()
-  findAll() {
-    return this.fingerprintsService.findAll();
+  @Get('all')
+  getAllFingerprint() {
+    return this.fingerprintsService.getAllFingerprint();
+  }
+
+  @Get('class/all/:classId')
+  getAllFingerprintWithClass(@Param('classId') classId: string) {
+    return this.fingerprintsService.getAllFingerprintWithClass(classId);
   }
 
   @Get(':id')

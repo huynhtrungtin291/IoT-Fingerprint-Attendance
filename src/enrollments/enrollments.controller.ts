@@ -6,10 +6,13 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
 import { EnrollmentsService } from './enrollments.service.js';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto.js';
+import { CreateEnrollmentsByClassDto } from './dto/create-enrollments-by-class.dto.js';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto.js';
+import type { AuthenticatedRequest } from '../common/interfaces/authenticated.request.interface.js';
 
 @Controller('enrollments')
 export class EnrollmentsController {
@@ -20,14 +23,21 @@ export class EnrollmentsController {
     return this.enrollmentsService.create(dto);
   }
 
+  @Post('create-by-class')
+  createByClass(
+    @Body() dto: CreateEnrollmentsByClassDto,
+    @Req() req: AuthenticatedRequest) {
+    return this.enrollmentsService.createByClass(dto, req.user._id);
+  }
+
   @Get()
   findAll() {
     return this.enrollmentsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.enrollmentsService.findOne(id);
+  @Get('all')
+  getAllEnrollmentWithUserId(@Req() req: AuthenticatedRequest) {
+    return this.enrollmentsService.getAllEnrollmentWithUserId(req.user._id);
   }
 
   @Patch(':id')

@@ -35,7 +35,7 @@ Giá trị `authSecret` dùng để ESP32 xác thực khi gọi
 `GET /devices/me/pending-registration` và các API dành cho thiết bị. Thiết bị
 cần lưu secret này an toàn vì server không thể trả lại secret sau khi đã hash.
 
-### GET /devices
+### GET /devices/all
 
 Lấy danh sách máy, sắp xếp theo `deviceCode`. Kết quả được populate thông tin phòng.
 

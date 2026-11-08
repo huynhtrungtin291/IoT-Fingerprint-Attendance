@@ -42,9 +42,10 @@ export class SectionsService {
     });
   }
 
-  async findAll() {
+  async getAllSectionWithUserId(userId: string) {
+    console.log('TeacherID', userId);
     return this.sectionModel
-      .find()
+      .find({ teacherId: new Types.ObjectId(userId) })
       .populate('courseId', 'courseCode courseName')
       .populate('teacherId', 'fullName userName')
       .sort({ sectionCode: 1 })

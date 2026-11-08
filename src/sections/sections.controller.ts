@@ -6,10 +6,12 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
 import { SectionsService } from './sections.service.js';
 import { CreateSectionDto } from './dto/create-section.dto.js';
 import { UpdateSectionDto } from './dto/update-section.dto.js';
+import type { AuthenticatedRequest } from '../common/interfaces/authenticated.request.interface.js';
 
 @Controller('sections')
 export class SectionsController {
@@ -20,9 +22,9 @@ export class SectionsController {
     return this.sectionsService.create(dto);
   }
 
-  @Get()
-  findAll() {
-    return this.sectionsService.findAll();
+  @Get('all')
+  getAllSectionWithUserId(@Req() req: AuthenticatedRequest) {
+    return this.sectionsService.getAllSectionWithUserId(req.user._id);
   }
 
   @Get(':id')

@@ -39,7 +39,7 @@ Authorization: Bearer <access-token>
 }
 ```
 
-### GET /sections
+### GET /sections/all
 
 Lấy danh sách lớp học phần. Kết quả được populate thông tin môn học và giảng viên.
 
@@ -71,4 +71,3 @@ Khi cập nhật `courseId` hoặc `teacherId`, tài nguyên tham chiếu phải
 ```
 
 Mã lớp học phần không hợp lệ — HTTP 400. Không tìm thấy môn học, giảng viên hoặc lớp học phần — HTTP 404. Trùng `sectionCode` — HTTP 409.
-

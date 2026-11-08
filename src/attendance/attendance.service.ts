@@ -16,6 +16,7 @@ import {
 } from '../fingerprints/schema/fingerprints.schema.js';
 import { UserRole } from '../common/enum/user.enum.js';
 import { Session } from '../sessions/schema/sessions.schema.js';
+import { Section } from '../sections/schema/sections.schema.js';
 import { User } from '../users/schema/user.schema.js';
 import { CreateAttendanceDto } from './dto/create-attendance.dto.js';
 import { DeviceAttendanceDto } from './dto/device-attendance.dto.js';
@@ -35,6 +36,8 @@ export class AttendanceService {
     private readonly attendanceModel: Model<Attendance>,
     @InjectModel('Session')
     private readonly sessionModel: Model<Session>,
+    @InjectModel('Section')
+    private readonly sectionModel: Model<Section>,
     @InjectModel('User')
     private readonly userModel: Model<User>,
     @InjectModel('Device')
@@ -332,6 +335,38 @@ export class AttendanceService {
     return this.attendanceModel
       .find()
       .populate('sessionId', 'sectionId status startTime endTime')
+      .populate('studentId', 'fullName userName studentCode')
+      .sort({ receivedAt: -1 })
+      .exec();
+  }
+
+  async getAttendanceByTeacher(userId: string) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Mã giáo viên không hợp lệ');
+    }
+
+    const sections = await this.sectionModel
+      .find({ teacherId: new Types.ObjectId(userId) })
+      .select('_id')
+      .lean()
+      .exec();
+
+    const sessions = await this.sessionModel
+      .find({ sectionId: { $in: sections.map((section) => section._id) } })
+      .select('_id')
+      .lean()
+      .exec();
+
+    return this.attendanceModel
+      .find({ sessionId: { $in: sessions.map((session) => session._id) } })
+      .populate({
+        path: 'sessionId',
+        select: 'sectionId status startTime endTime roomId',
+        populate: [
+          { path: 'sectionId', select: 'sectionCode courseId teacherId' },
+          { path: 'roomId', select: 'roomCode building campus' },
+        ],
+      })
       .populate('studentId', 'fullName userName studentCode')
       .sort({ receivedAt: -1 })
       .exec();

@@ -38,9 +38,11 @@ Quy tắc thời gian:
 
 Lấy danh sách buổi học, sắp xếp theo `startTime`. Kết quả được populate thông tin lớp học phần.
 
-### GET /sessions/:id
+### GET /sessions/all
 
-Lấy một buổi học theo MongoDB ObjectId.
+Lấy các buổi học thuộc các lớp học phần của giáo viên đang đăng nhập. ID giáo
+viên được lấy từ access token.
+
 
 ### PATCH /sessions/:id
 

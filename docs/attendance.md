@@ -162,6 +162,11 @@ hoặc HTTP 400 tương ứng.
 
 Lấy danh sách kết quả điểm danh, sắp xếp theo `receivedAt` giảm dần. Kết quả được populate buổi học và sinh viên.
 
+### GET /attendance/teacher
+
+Lấy toàn bộ kết quả điểm danh thuộc các section và session của giáo viên đang
+đăng nhập. ID giáo viên được lấy từ access token, không truyền trên URL.
+
 ### GET /attendance/:id
 
 Lấy một kết quả điểm danh theo MongoDB ObjectId.

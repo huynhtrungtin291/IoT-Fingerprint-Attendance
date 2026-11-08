@@ -58,6 +58,15 @@ Authorization: ******
 Lấy danh sách mẫu vân tay, sắp xếp theo `createdAt` giảm dần. Kết quả được
 populate thông tin sinh viên.
 
+### GET /fingerprints/all
+
+Lấy toàn bộ mẫu vân tay. Đây là route tương đương với `GET /fingerprints`.
+
+### GET /fingerprints/class/all/:classId
+
+Lấy các mẫu vân tay của toàn bộ sinh viên thuộc lớp có `classId`.
+`classId` phải là MongoDB ObjectId. Kết quả được populate thông tin sinh viên.
+
 ### GET /fingerprints/:id
 
 API cần header:

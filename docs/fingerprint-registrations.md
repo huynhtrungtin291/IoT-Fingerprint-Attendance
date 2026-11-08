@@ -2,7 +2,7 @@ Base URL: `http://localhost:3000`
 
 ## Module Fingerprint Registrations
 
-### POST /fingerprint-registrations
+### POST /fingerprint-registrations/create
 
 API dành cho giảng viên tạo một lượt đăng ký vân tay cho sinh viên.
 
@@ -28,7 +28,7 @@ Tài khoản phải có role `teacher`.
 `deviceId` phải là MongoDB ObjectId của máy điểm danh đang ở trạng thái `active`.
 `fingerPosition` là vị trí ngón tay cần đăng ký, ví dụ `rightIndex`.
 
-Server tự đặt thời hạn nhận dữ liệu là 5 phút kể từ lúc tạo.
+Server tự đặt thời hạn nhận dữ liệu là 35 phút kể từ lúc tạo.
 
 Đầu ra — HTTP 201:
 
@@ -83,6 +83,28 @@ Các lượt đã quá hạn sẽ được chuyển sang trạng thái `expired`
 Nếu chưa có lượt đăng ký đang chờ — HTTP 204, body trống.
 Mã máy, secret không hợp lệ hoặc máy không ở trạng thái `active` —
 HTTP 401.
+
+### GET /fingerprint-registrations/all
+
+Lấy tất cả lượt đăng ký vân tay, sắp xếp theo thời gian tạo giảm dần.
+Kết quả được populate thông tin sinh viên và thiết bị.
+
+### GET /fingerprint-registrations/all/class/:classId
+
+Lấy các lượt đăng ký vân tay của sinh viên thuộc lớp có `classId`.
+`classId` phải là MongoDB ObjectId.
+
+### DELETE /fingerprint-registrations/:id
+
+API dành cho giảng viên xóa một lượt đăng ký vân tay theo registration ID.
+
+Đầu ra — HTTP 200:
+
+```json
+{
+  "message": "Xóa đăng ký vân tay thành công"
+}
+```
 
 ### Luồng hoàn tất đăng ký
 

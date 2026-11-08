@@ -44,7 +44,7 @@ Trùng mã phòng trong cùng cơ sở — HTTP 409:
 }
 ```
 
-### GET /rooms
+### GET /rooms/all
 
 Lấy danh sách phòng, sắp xếp theo `campus` và `roomCode`.
 

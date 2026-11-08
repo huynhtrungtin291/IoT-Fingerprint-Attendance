@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -6,10 +7,12 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
 import { SessionsService } from './sessions.service.js';
 import { CreateSessionDto } from './dto/create-session.dto.js';
 import { UpdateSessionDto } from './dto/update-session.dto.js';
+import type { AuthenticatedRequest } from '../common/interfaces/authenticated.request.interface.js';
 
 @Controller('sessions')
 export class SessionsController {
@@ -25,9 +28,9 @@ export class SessionsController {
     return this.sessionsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.sessionsService.findOne(id);
+  @Get('all')
+  getAllSessionsWithUserId(@Req() req: AuthenticatedRequest) {
+    return this.sessionsService.getAllSessionsWithUserId(req.user._id);
   }
 
   @Patch(':id')

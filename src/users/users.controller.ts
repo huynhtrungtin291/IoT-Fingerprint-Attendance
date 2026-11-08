@@ -17,6 +17,7 @@ import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdatePasswordDto } from './dto/update-passwrod.dto.js';
 import type { AuthenticatedRequest } from '../common/interfaces/authenticated.request.interface.js';
 import { Public } from '@nestjs/authentication';
+import { UserRole } from '../common/enum/user.enum.js';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -41,7 +42,6 @@ export class UsersController {
   importStudents(
     @Param('classId') classId: string,
     @UploadedFile() file: Express.Multer.File,
-    
   ) {
     if (!file) {
       throw new BadRequestException('Vui lòng gửi file Excel');
@@ -50,4 +50,8 @@ export class UsersController {
     return this.usersService.importStudentsToClass(classId, file);
   }
 
+  @Get('all/:role')
+  getAllUser(@Param('role') role: UserRole) {
+    return this.usersService.getAllUser(role);
+  }
 }

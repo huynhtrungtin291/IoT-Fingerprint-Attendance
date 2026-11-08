@@ -42,7 +42,7 @@ Trùng mã môn học — HTTP 409:
 }
 ```
 
-### GET /courses
+### GET /courses/all
 
 Lấy danh sách môn học, sắp xếp theo `courseCode`.
 
@@ -71,4 +71,3 @@ Có thể cập nhật `courseCode` và `courseName`. `courseCode` mới phải 
   "message": "Xóa môn học thành công"
 }
 ```
-

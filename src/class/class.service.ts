@@ -23,6 +23,10 @@ export class ClassService {
     return this.classModel.create(dto);
   }
 
+  async getAllClasses() {
+  return await this.classModel.find({}).exec();
+}
+
   async remove(id: string) {
     const classData = await this.classModel.findByIdAndDelete(id).exec();
 

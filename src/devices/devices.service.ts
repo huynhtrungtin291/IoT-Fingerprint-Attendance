@@ -46,8 +46,8 @@ export class DevicesService {
     return safeDevice;
   }
 
-  findAll() {
-    return this.deviceModel
+  async getAllDevice() {
+    return await this.deviceModel
       .find()
       .populate('roomId', 'roomCode building campus')
       .sort({ deviceCode: 1 })

@@ -65,6 +65,10 @@ Không tìm thấy lớp — HTTP 404:
 }
 ```
 
+### GET /classes/all
+
+Lấy danh sách lớp, sắp xếp theo `classCode`.
+
 ## Module Users
 
 ### POST /users/:classId/import

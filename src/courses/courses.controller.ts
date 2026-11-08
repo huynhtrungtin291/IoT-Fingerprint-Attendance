@@ -20,5 +20,8 @@ export class CoursesController {
     return this.coursesService.create(dto);
   }
 
-  
+  @Get('all')
+  getAllCourses() {
+    return this.coursesService.getAllCourses();
+  }
 }

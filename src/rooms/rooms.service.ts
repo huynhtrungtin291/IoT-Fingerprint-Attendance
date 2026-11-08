@@ -29,7 +29,7 @@ export class RoomsService {
     return this.roomModel.create({ roomCode, building, campus });
   }
 
-  findAll() {
+  getAllRoom() {
     return this.roomModel.find().sort({ campus: 1, roomCode: 1 }).exec();
   }
 

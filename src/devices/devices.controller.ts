@@ -20,9 +20,9 @@ export class DevicesController {
     return this.devicesService.create(dto);
   }
 
-  @Get()
-  findAll() {
-    return this.devicesService.findAll();
+  @Get('all')
+  getAllDevice() {
+    return this.devicesService.getAllDevice();
   }
 
   @Get(':id')

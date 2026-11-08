@@ -102,3 +102,19 @@ Không tìm thấy người dùng — HTTP 404:
   "error": "Not Found"
 }
 ```
+
+### GET /users/all/:role
+
+Lấy danh sách người dùng theo role.
+
+Các giá trị `role` hợp lệ:
+
+- `admin`
+- `teacher`
+- `student`
+
+Ví dụ:
+
+```http
+GET /users/all/student
+```

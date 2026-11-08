@@ -55,19 +55,24 @@ export class SessionsService {
       .exec();
   }
 
-  async findOne(id: string) {
-    await this.ensureValidId(id);
-    const session = await this.sessionModel
-      .findById(id)
-      .populate('sectionId', 'sectionCode courseId teacherId')
-      .populate('roomId', 'roomCode building campus')
+  async getAllSessionsWithUserId(userId: string) {
+    await this.ensureValidId(userId);
+    const teacherId = new Types.ObjectId(userId);
+    const sections = await this.sectionModel
+      .find({ teacherId })
+      .select('_id')
+      .lean()
       .exec();
 
-    if (!session) {
-      throw new NotFoundException('Buổi học không tồn tại');
-    }
-
-    return session;
+    return this.sessionModel
+      .find({ sectionId: { $in: sections.map((section) => section._id) } })
+      .populate({
+        path: 'sectionId',
+        select: 'sectionCode courseId teacherId',
+      })
+      .populate('roomId', 'roomCode building campus')
+      .sort({ startTime: 1 })
+      .exec();
   }
 
   async update(id: string, dto: UpdateSessionDto) {

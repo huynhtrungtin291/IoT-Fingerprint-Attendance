@@ -1,4 +1,10 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException} from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { PasswordHasher } from '@nestjs/authentication';
 import { Model, Types } from 'mongoose';
@@ -61,6 +67,52 @@ export class FingerprintRegistrationsService {
       status: registration.status,
       expiresAt: registration.expiresAt,
     };
+  }
+
+  async getAllRegistrations() {
+    return this.registrationModel
+      .find()
+      .populate('studentId', 'fullName userName studentCode classId')
+      .populate('deviceId', 'deviceCode deviceName roomId status')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  async getAllRegistrationsWithClass(classId: string) {
+    if (!Types.ObjectId.isValid(classId)) {
+      throw new BadRequestException('Mã lớp không hợp lệ');
+    }
+
+    const students = await this.userModel
+      .find({
+        classId: new Types.ObjectId(classId),
+        role: UserRole.STUDENT,
+      })
+      .select('_id')
+      .lean()
+      .exec();
+
+    return this.registrationModel
+      .find({ studentId: { $in: students.map((student) => student._id) } })
+      .populate('studentId', 'fullName userName studentCode classId')
+      .populate('deviceId', 'deviceCode deviceName roomId status')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  async remove(id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Mã đăng ký không hợp lệ');
+    }
+
+    const registration = await this.registrationModel
+      .findByIdAndDelete(id)
+      .exec();
+    if (!registration) {
+      throw new NotFoundException('Đăng ký vân tay không tồn tại');
+    }
+
+    return { message: 'Xóa đăng ký vân tay thành công' };
   }
 
   async findPendingForDevice(deviceCode: string, deviceSecret: string) {
