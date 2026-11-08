@@ -202,8 +202,7 @@ export class AttendanceService {
       .lean()
       .exec();
 
-    if (
-      !device ||
+    if ( !device ||
       device.status !== DeviceStatus.ACTIVE ||
       !(await this.passwordHasher.verify(deviceSecret, device.authSecretHash))
     ) {
@@ -225,8 +224,8 @@ export class AttendanceService {
       );
     }
 
-    const openTime = session.attendanceOpenTime ?? session.startTime;
-    const closeTime = session.attendanceCloseTime ?? session.endTime;
+    const openTime = session.startTime;
+    const closeTime = session.endTime;
     const checkIns = dto.templates.map((item) => ({
       template: item.template,
       checkInTime: new Date(item.timestamp),
