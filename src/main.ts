@@ -30,7 +30,10 @@ async function bootstrap() {
       secret: cookieSecret,
     },
   });
-
+  app.enableCors({
+    origin: '*',
+    credentials: true,
+  });
   app.use(cookieParser(cookieSecret));
   app.useGlobalPipes(new ValidationPipe());
   await app.listen(process.env.PORT ?? 3000);

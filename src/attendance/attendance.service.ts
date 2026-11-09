@@ -300,7 +300,7 @@ export class AttendanceService {
             studentId: new Types.ObjectId(studentId),
             status:
               checkInTime.getTime() >
-              session.startTime.getTime() + 15 * 60 * 1000
+              session.attendanceCloseTime!.getTime()
                 ? AttendanceStatus.LATE
                 : AttendanceStatus.PRESENT,
             checkInTime,
